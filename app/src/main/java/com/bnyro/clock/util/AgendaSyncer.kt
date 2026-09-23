@@ -1,9 +1,13 @@
 package com.bnyro.clock.util
 
 import android.Manifest
+import android.accounts.Account
+import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Bundle
 import android.provider.CalendarContract
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.bnyro.clock.App
 import com.bnyro.clock.domain.model.AgendaEvent
@@ -21,17 +25,19 @@ class AgendaSyncer(private val context: Context) {
     private val appContext = context.applicationContext
     private val container get() = (appContext as App).container
 
-    suspend fun sync(): Result = withContext(Dispatchers.IO) {
+    suspend fun sync(requestProviderSync: Boolean = false): Result = withContext(Dispatchers.IO) {
         if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.READ_CALENDAR) !=
             PackageManager.PERMISSION_GRANTED
         ) {
             return@withContext Result.PermissionRequired
         }
 
+        if (requestProviderSync) requestGoogleCalendarSync()
         val now = System.currentTimeMillis()
+        val windowStart = AgendaSyncWindow.startOfCurrentDay(now, ZoneId.systemDefault())
         val windowEnd = now + TimeUnit.DAYS.toMillis(7)
         val googleCalendarIds = queryGoogleCalendarIds()
-        val sourceEvents = queryEvents(now, windowEnd, googleCalendarIds)
+        val sourceEvents = queryEvents(windowStart, windowEnd, googleCalendarIds)
         val localEvents = container.agendaRepository.getEvents().associateBy { it.eventKey }
 
         sourceEvents.forEach { source ->
@@ -102,6 +108,42 @@ class AgendaSyncer(private val context: Context) {
         }.orEmpty()
     }
 
+    /** Asks Android's Google Calendar sync adapter to fetch recent remote changes. */
+    private fun requestGoogleCalendarSync() {
+        val projection = arrayOf(
+            CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE
+        )
+        appContext.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            "${CalendarContract.Calendars.ACCOUNT_TYPE} = ?",
+            arrayOf("com.google"),
+            null
+        )?.use { cursor ->
+            buildSet {
+                while (cursor.moveToNext()) {
+                    val accountName = cursor.getString(0) ?: continue
+                    add(Account(accountName, cursor.getString(1)))
+                }
+            }.forEach { account ->
+                // This is asynchronous. Calendar provider updates are observed by AgendaScreen.
+                runCatching {
+                    ContentResolver.requestSync(
+                        account,
+                        CalendarContract.AUTHORITY,
+                        Bundle().apply {
+                            putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+                            putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+                        }
+                    )
+                }.onFailure { error ->
+                    Log.w(TAG, "Unable to request Google Calendar sync", error)
+                }
+            }
+        }
+    }
+
     private fun queryEvents(windowStart: Long, windowEnd: Long, googleCalendarIds: Set<Long>): List<AgendaEvent> {
         if (googleCalendarIds.isEmpty()) return emptyList()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
@@ -120,7 +162,7 @@ class AgendaSyncer(private val context: Context) {
         val placeholders = googleCalendarIds.joinToString(",") { "?" }
         val selection = "${CalendarContract.Instances.CALENDAR_ID} IN ($placeholders) " +
             "AND ${CalendarContract.Instances.ALL_DAY} = 0"
-        return appContext.contentResolver.query(
+        val events = appContext.contentResolver.query(
             uri,
             projection,
             selection,
@@ -147,19 +189,55 @@ class AgendaSyncer(private val context: Context) {
                             title = title,
                             beginAt = beginAt,
                             endAt = endAt,
+                            reminderMinutes = 0,
                             alarmId = 0L
                         )
                     )
                 }
             }
         }.orEmpty()
+        val reminderMinutesByEventId = queryReminderMinutes(
+            events.mapTo(mutableSetOf()) { it.calendarEventId }
+        )
+        return events.map { event ->
+            event.copy(reminderMinutes = reminderMinutesByEventId[event.calendarEventId] ?: 0)
+        }
+    }
+
+    /**
+     * Returns the earliest configured Calendar reminder for every event.
+     * Calendar stores this value as the number of minutes before the event.
+     */
+    private fun queryReminderMinutes(eventIds: Set<Long>): Map<Long, Int> {
+        if (eventIds.isEmpty()) return emptyMap()
+        val placeholders = eventIds.joinToString(",") { "?" }
+        val projection = arrayOf(
+            CalendarContract.Reminders.EVENT_ID,
+            CalendarContract.Reminders.MINUTES
+        )
+        return appContext.contentResolver.query(
+            CalendarContract.Reminders.CONTENT_URI,
+            projection,
+            "${CalendarContract.Reminders.EVENT_ID} IN ($placeholders) " +
+                "AND ${CalendarContract.Reminders.METHOD} = ?",
+            (eventIds.map(Long::toString) + CalendarContract.Reminders.METHOD_ALERT.toString())
+                .toTypedArray(),
+            null
+        )?.use { cursor ->
+            buildMap<Long, Int> {
+                while (cursor.moveToNext()) {
+                    val eventId = cursor.getLong(0)
+                    val minutes = cursor.getInt(1)
+                    val current = get(eventId)
+                    // If Calendar has more than one reminder, mirror the earliest one.
+                    if (current == null || minutes > current) put(eventId, minutes)
+                }
+            }
+        }.orEmpty()
     }
 
     private fun buildAlarm(event: AgendaEvent, id: Long, enabled: Boolean): Alarm {
-        val reminderMillis = TimeUnit.MINUTES.toMillis(
-            Preferences.instance.getInt(Preferences.agendaReminderMinutesKey, 60).toLong()
-        )
-        val reminderAt = event.beginAt - reminderMillis
+        val reminderAt = event.beginAt - TimeUnit.MINUTES.toMillis(event.reminderMinutes.toLong())
         val dateTime = Instant.ofEpochMilli(reminderAt).atZone(ZoneId.systemDefault())
         return Alarm(
             id = id,
@@ -176,5 +254,9 @@ class AgendaSyncer(private val context: Context) {
     sealed interface Result {
         data class Success(val eventCount: Int) : Result
         data object PermissionRequired : Result
+    }
+
+    private companion object {
+        const val TAG = "AgendaSyncer"
     }
 }

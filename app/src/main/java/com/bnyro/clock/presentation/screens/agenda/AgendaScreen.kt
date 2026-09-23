@@ -1,9 +1,13 @@
 package com.bnyro.clock.presentation.screens.agenda
 
 import android.Manifest
+import android.database.ContentObserver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.provider.CalendarContract
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,7 +31,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LoadingIndicator
@@ -36,6 +39,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,10 +77,36 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCalendarPermission = granted
-        if (granted) agendaModel.sync()
+        if (granted) agendaModel.sync(requestProviderSync = true)
     }
     val events by agendaModel.events.collectAsState()
     var showDisconnectDialog by remember { mutableStateOf(false) }
+
+    // Refresh when the screen is opened and whenever Android receives a calendar update.
+    // Google Calendar may finish syncing an event after this app has already been opened.
+    LaunchedEffect(hasCalendarPermission) {
+        if (hasCalendarPermission) agendaModel.sync(requestProviderSync = true)
+    }
+    DisposableEffect(context, hasCalendarPermission) {
+        if (!hasCalendarPermission) return@DisposableEffect onDispose {}
+
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                agendaModel.sync()
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            CalendarContract.Events.CONTENT_URI,
+            true,
+            observer
+        )
+        context.contentResolver.registerContentObserver(
+            CalendarContract.Reminders.CONTENT_URI,
+            true,
+            observer
+        )
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
 
     TopBarScaffold(
         title = stringResource(R.string.agenda),
@@ -85,7 +116,7 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
                 LoadingIndicator(modifier = Modifier.size(32.dp))
             } else {
                 ClickableIcon(imageVector = Icons.Default.Refresh) {
-                    if (hasCalendarPermission) agendaModel.sync()
+                    if (hasCalendarPermission) agendaModel.sync(requestProviderSync = true)
                     else permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 }
             }
@@ -96,9 +127,10 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
                 if (!hasCalendarPermission) {
                     AgendaPermissionContent { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }
                 } else {
-                    ReminderOptions(
-                        reminderMinutes = agendaModel.reminderMinutes,
-                        onReminderSelected = agendaModel::updateReminderMinutes
+                    Text(
+                        text = stringResource(R.string.agenda_window),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     DisconnectCalendarButton { showDisconnectDialog = true }
                     if (events.isEmpty()) {
@@ -202,22 +234,6 @@ private fun AgendaPermissionContent(onConnect: () -> Unit) {
 }
 
 @Composable
-private fun ReminderOptions(reminderMinutes: Int, onReminderSelected: (Int) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(stringResource(R.string.agenda_window), style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-            listOf(15, 30, 60).forEach { minutes ->
-                FilterChip(
-                    selected = reminderMinutes == minutes,
-                    onClick = { onReminderSelected(minutes) },
-                    label = { Text(stringResource(R.string.agenda_reminder_minutes, minutes)) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun DisconnectCalendarButton(onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
@@ -246,11 +262,7 @@ private fun EmptyAgendaContent() {
 @Composable
 private fun AgendaEventItem(event: AgendaEvent, onEnabledChanged: (AgendaEvent, Boolean) -> Unit) {
     val dateTime = Instant.ofEpochMilli(event.beginAt).atZone(ZoneId.systemDefault())
-    val alarmTime = dateTime.minusMinutes(
-        com.bnyro.clock.util.Preferences.instance.getInt(
-            com.bnyro.clock.util.Preferences.agendaReminderMinutesKey, 60
-        ).toLong()
-    )
+    val alarmTime = dateTime.minusMinutes(event.reminderMinutes.toLong())
     val locale = Locale.getDefault()
     val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
