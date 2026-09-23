@@ -1,6 +1,7 @@
 package com.bnyro.clock.util.google
 
 import com.bnyro.clock.domain.model.OAuthAccount
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -103,12 +104,16 @@ class GoogleCalendarApiTest {
         var requests = 0
         var invalidations = 0
         var requiresConsent = false
+        var invalidationFailure: Exception? = null
         override suspend fun accessToken(account: OAuthAccount): String {
             requests++
             if (requiresConsent) throw GoogleReconnectRequiredException()
             return "token$requests"
         }
-        override suspend fun invalidateToken(account: OAuthAccount) { invalidations++ }
+        override suspend fun invalidateToken(account: OAuthAccount) {
+            invalidations++
+            invalidationFailure?.let { throw it }
+        }
         override suspend fun revoke(account: OAuthAccount) = Unit
     }
 
@@ -163,5 +168,61 @@ class GoogleCalendarApiTest {
         assertEquals(1, tokens.requests)
         assertEquals(0, tokens.invalidations)
         assertTrue(marked.isEmpty())
+    }
+
+    @Test fun `failed token cleanup still retries once and marks continued authorization failure`() = runBlocking {
+        val tokens = FakeTokens().apply { invalidationFailure = java.io.IOException("cleanup unavailable") }
+        val marked = mutableListOf<String>()
+        val gateway = AuthorizedGoogleCalendar(tokens, GoogleCalendarApi(GoogleHttpTransport { _, _ -> GoogleHttpResponse(401, "") })) { marked += it }
+        try {
+            gateway.events(account, 0L, 1L)
+            fail("Expected reconnection")
+        } catch (_: GoogleReconnectRequiredException) { }
+        assertEquals(2, tokens.requests)
+        assertEquals(2, tokens.invalidations)
+        assertEquals(listOf("123"), marked)
+    }
+
+    @Test fun `token cleanup cancellation is propagated without retry or state change`() = runBlocking {
+        val cancellation = CancellationException("Cancelled")
+        val tokens = FakeTokens().apply { invalidationFailure = cancellation }
+        val marked = mutableListOf<String>()
+        val gateway = AuthorizedGoogleCalendar(tokens, GoogleCalendarApi(GoogleHttpTransport { _, _ -> GoogleHttpResponse(401, "") })) { marked += it }
+        try {
+            gateway.events(account, 0L, 1L)
+            fail("Expected cancellation")
+        } catch (error: CancellationException) { assertSame(cancellation, error) }
+        assertEquals(1, tokens.requests)
+        assertTrue(marked.isEmpty())
+    }
+
+    @Test fun `invalid remote event dates become sanitized IO failures`() = runBlocking {
+        for (date in listOf("private-invalid-date", "2026-13-23T19:00:00-03:00")) {
+            val api = GoogleCalendarApi(GoogleHttpTransport { url, _ ->
+                GoogleHttpResponse(200, if (url.contains("calendarList")) """{"items":[{"id":"cal"}]}""" else
+                    """{"items":[{"id":"event","start":{"dateTime":"$date"},"end":{"dateTime":"$end"}}]}""")
+            })
+            try {
+                api.events("a", "token", 0L, Long.MAX_VALUE)
+                fail("Expected invalid response")
+            } catch (error: java.io.IOException) {
+                assertEquals("Invalid Google response", error.message)
+                assertNull(error.cause)
+            }
+        }
+    }
+
+    @Test fun `missing remote start becomes a sanitized IO failure`() = runBlocking {
+        val api = GoogleCalendarApi(GoogleHttpTransport { url, _ ->
+            GoogleHttpResponse(200, if (url.contains("calendarList")) """{"items":[{"id":"cal"}]}""" else
+                """{"items":[{"id":"event","end":{"dateTime":"$end"}}]}""")
+        })
+        try {
+            api.events("a", "token", 0L, Long.MAX_VALUE)
+            fail("Expected invalid response")
+        } catch (error: java.io.IOException) {
+            assertEquals("Invalid Google response", error.message)
+            assertNull(error.cause)
+        }
     }
 }

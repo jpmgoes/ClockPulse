@@ -17,6 +17,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -139,7 +140,14 @@ class AuthorizedGoogleCalendar(
                     (error is GoogleApiException && error.statusCode == 401)
                 // A timeout, quota error or server error is not lost consent.
                 if (!unauthorized) throw error
-                tokens.invalidateToken(account)
+                try {
+                    tokens.invalidateToken(account)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // The in-memory token is already forgotten. Cache cleanup must not suppress
+                    // the one fresh authorization attempt or the final reconnect state.
+                }
                 if (attempt == 1) {
                     markReconnectRequired(account.id)
                     throw GoogleReconnectRequiredException()

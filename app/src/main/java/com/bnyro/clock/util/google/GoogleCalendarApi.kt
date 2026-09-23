@@ -10,6 +10,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 import java.time.Instant
+import java.time.DateTimeException
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
@@ -54,7 +55,7 @@ class GoogleCalendarApi(private val transport: GoogleHttpTransport = UrlConnecti
 
     suspend fun profile(accessToken: String): OAuthAccount {
         val profile = decode<GoogleProfileDto>(get("https://openidconnect.googleapis.com/v1/userinfo", accessToken))
-        require(profile.sub.isNotBlank() && profile.email.isNotBlank()) { "Google profile is incomplete" }
+        if (profile.sub.isBlank() || profile.email.isBlank()) throw IOException("Invalid Google response")
         return OAuthAccount(
             id = profile.sub, provider = "GOOGLE_CALENDAR", profileId = profile.sub,
             displayName = profile.name.ifBlank { profile.email }, email = profile.email,
@@ -71,9 +72,11 @@ class GoogleCalendarApi(private val transport: GoogleHttpTransport = UrlConnecti
             val response = decode<GoogleCalendarList>(get(url("users/me/calendarList", mapOf(
                 "maxResults" to "250", "minAccessRole" to "reader", "showHidden" to "true", "pageToken" to page
             )), accessToken))
-            calendars += response.items.filterNot { it.deleted }
+            calendars += response.items.filterNot { it.deleted }.also { items ->
+                if (items.any { it.id.isBlank() }) throw IOException("Invalid Google response")
+            }
             page = response.nextPageToken
-            check(page == null || calendarPages.add(page)) { "Repeated Google Calendar page" }
+            if (page != null && !calendarPages.add(page)) throw IOException("Invalid Google response")
         } while (page != null)
 
         val events = mutableListOf<RemoteAgendaEvent>()
@@ -90,16 +93,18 @@ class GoogleCalendarApi(private val transport: GoogleHttpTransport = UrlConnecti
                     mapEvent(accountId, calendar, event, response.timeZone ?: calendar.timeZone)
                 }
                 page = response.nextPageToken
-                check(page == null || eventPages.add(page)) { "Repeated Google event page" }
+                if (page != null && !eventPages.add(page)) throw IOException("Invalid Google response")
             } while (page != null)
         }
         return events.distinctBy { it.eventKey }.sortedBy { it.beginAt }
     }
 
-    private fun mapEvent(accountId: String, calendar: GoogleCalendarDto, event: GoogleEventDto, zone: String): RemoteAgendaEvent {
+    private fun mapEvent(accountId: String, calendar: GoogleCalendarDto, event: GoogleEventDto, zone: String): RemoteAgendaEvent = try {
+        require(event.id.isNotBlank())
         val start = requireNotNull(event.start) { "Google event has no start" }
         val beginAt = start.epochMillis(zone)
         val endAt = requireNotNull(event.end) { "Google event has no end" }.epochMillis(zone)
+        require(endAt >= beginAt)
         val instance = (event.originalStartTime ?: start).epochMillis(zone)
         val reminders = when {
             event.reminders == null || event.reminders.useDefault -> calendar.defaultReminders
@@ -107,12 +112,18 @@ class GoogleCalendarApi(private val transport: GoogleHttpTransport = UrlConnecti
         }
         // A larger minutes-before value rings earlier. Email reminders are not device notifications.
         val minutes = reminders.filter { it.method == "popup" && it.minutes >= 0 }.maxOfOrNull { it.minutes } ?: 0
-        return RemoteAgendaEvent(
+        RemoteAgendaEvent(
             eventKey = "google:${encode(accountId)}:${encode(calendar.id)}:${encode(event.id)}:$instance",
             connectionId = accountId, calendarId = calendar.id, eventId = event.id,
             title = event.summary, beginAt = beginAt, endAt = endAt, reminderMinutes = minutes,
             allDay = start.dateTime == null
         )
+    } catch (_: DateTimeException) {
+        throw IOException("Invalid Google response")
+    } catch (_: IllegalArgumentException) {
+        throw IOException("Invalid Google response")
+    } catch (_: ArithmeticException) {
+        throw IOException("Invalid Google response")
     }
 
     private fun GoogleDateTimeDto.epochMillis(defaultZone: String): Long {
