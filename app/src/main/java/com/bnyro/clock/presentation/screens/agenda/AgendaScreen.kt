@@ -13,6 +13,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -128,6 +130,7 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
 }
 
 /** Pure UI boundary also used by source-exclusivity instrumented tests. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaSourceContent(
     state: AgendaUiState,
@@ -145,6 +148,7 @@ fun AgendaSourceContent(
     onEnabledChanged: (AgendaEvent, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showAccounts by remember { mutableStateOf(false) }
     var disconnectAll by remember { mutableStateOf(false) }
     var disconnectLocal by remember { mutableStateOf(false) }
     var removeAccount by remember { mutableStateOf<OAuthAccount?>(null) }
@@ -183,26 +187,10 @@ fun AgendaSourceContent(
             }
             AgendaSource.OAUTH -> {
                 item { Text(stringResource(R.string.agenda_oauth_source), style = MaterialTheme.typography.titleLarge) }
-                items(state.accounts, key = { "account:${it.id}" }) { account ->
-                    Card(Modifier.fillMaxWidth().testTag("oauth-account")) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Google Calendar", style = MaterialTheme.typography.labelLarge)
-                            Text(account.displayName, style = MaterialTheme.typography.titleMedium)
-                            Text(account.email, style = MaterialTheme.typography.bodyMedium)
-                            if (account.state == "RECONNECT_REQUIRED") Text(stringResource(R.string.agenda_reconnect_required), color = MaterialTheme.colorScheme.error)
-                            else if (account.id in failedAccountIds) Text(stringResource(R.string.agenda_account_sync_failed), color = MaterialTheme.colorScheme.error)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { onReconnect(account) }, enabled = !busy) { Text(stringResource(R.string.agenda_reconnect)) }
-                                TextButton(onClick = { removeAccount = account }, enabled = !busy) { Text(stringResource(R.string.agenda_remove_account)) }
-                            }
-                        }
+                item {
+                    Button(onClick = { showAccounts = true }, enabled = !busy, modifier = Modifier.testTag("manage-google-accounts")) {
+                        Text(stringResource(R.string.agenda_manage_google_accounts, state.accounts.size))
                     }
-                }
-                item {
-                    Button(onClick = onAddAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) { Text(stringResource(R.string.agenda_add_google_account)) }
-                }
-                item {
-                    OutlinedButton(onClick = { disconnectAll = true }, enabled = !busy, modifier = Modifier.testTag("disconnect-all")) { Text(stringResource(R.string.agenda_disconnect_all)) }
                     Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -215,11 +203,44 @@ fun AgendaSourceContent(
                 else event.connectionId != null && state.accounts.any { it.id == event.connectionId }
             }
             if (visible.isEmpty()) item { Text(stringResource(R.string.agenda_empty)) }
-            items(visible, key = { "event:${it.eventKey}" }) { event -> AgendaEventItem(event, onEnabledChanged, !busy) }
+            items(visible, key = { "event:${it.eventKey}" }) { event ->
+                val providerAndAccount = if (state.source == AgendaSource.LOCAL) {
+                    stringResource(R.string.agenda_event_provider_local)
+                } else {
+                    state.accounts.find { it.id == event.connectionId }?.let { account ->
+                        stringResource(R.string.agenda_event_provider_google, account.displayName, account.email)
+                    } ?: stringResource(R.string.agenda_event_provider_google_unknown)
+                }
+                AgendaEventItem(event, providerAndAccount, onEnabledChanged, !busy)
+            }
+        }
+    }
+    if (showAccounts && state.source == AgendaSource.OAUTH) {
+        ModalBottomSheet(onDismissRequest = { showAccounts = false }) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(stringResource(R.string.agenda_google_accounts_title), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.agenda_google_accounts_description), style = MaterialTheme.typography.bodyMedium)
+                state.accounts.forEach { account ->
+                    OAuthAccountCard(account, account.id in failedAccountIds, busy, onReconnect, { removeAccount = account })
+                }
+                Button(onClick = onAddAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) {
+                    Text(stringResource(R.string.agenda_add_google_account))
+                }
+                OutlinedButton(
+                    onClick = { disconnectAll = true },
+                    enabled = !busy && state.accounts.isNotEmpty(),
+                    modifier = Modifier.testTag("disconnect-all")
+                ) { Text(stringResource(R.string.agenda_disconnect_all)) }
+                Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
     if (disconnectAll) DisconnectDialog(R.string.agenda_disconnect_all, R.string.agenda_disconnect_all_description,
-        onDismiss = { disconnectAll = false }, onConfirm = { disconnectAll = false; onDisconnectAll() })
+        onDismiss = { disconnectAll = false }, onConfirm = { disconnectAll = false; showAccounts = false; onDisconnectAll() })
     if (disconnectLocal) DisconnectDialog(R.string.agenda_disconnect_local, R.string.agenda_disconnect_description,
         onDismiss = { disconnectLocal = false }, onConfirm = { disconnectLocal = false; onDisconnectLocal() })
     removeAccount?.let { account ->
@@ -228,6 +249,29 @@ fun AgendaSourceContent(
             text = { Text(stringResource(R.string.agenda_remove_description, account.email)) },
             confirmButton = { Button(onClick = { removeAccount = null; onRemove(account) }) { Text(stringResource(R.string.agenda_remove_account)) } },
             dismissButton = { TextButton(onClick = { removeAccount = null }) { Text(stringResource(R.string.cancel)) } })
+    }
+}
+
+@Composable
+private fun OAuthAccountCard(
+    account: OAuthAccount,
+    syncFailed: Boolean,
+    busy: Boolean,
+    onReconnect: (OAuthAccount) -> Unit,
+    onRemove: () -> Unit
+) {
+    Card(Modifier.fillMaxWidth().testTag("oauth-account")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Google Calendar", style = MaterialTheme.typography.labelLarge)
+            Text(account.displayName, style = MaterialTheme.typography.titleMedium)
+            Text(account.email, style = MaterialTheme.typography.bodyMedium)
+            if (account.state == "RECONNECT_REQUIRED") Text(stringResource(R.string.agenda_reconnect_required), color = MaterialTheme.colorScheme.error)
+            else if (syncFailed) Text(stringResource(R.string.agenda_account_sync_failed), color = MaterialTheme.colorScheme.error)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onReconnect(account) }, enabled = !busy) { Text(stringResource(R.string.agenda_reconnect)) }
+                TextButton(onClick = onRemove, enabled = !busy) { Text(stringResource(R.string.agenda_remove_account)) }
+            }
+        }
     }
 }
 
@@ -249,7 +293,7 @@ private fun DisconnectDialog(title: Int, description: Int, onDismiss: () -> Unit
 }
 
 @Composable
-private fun AgendaEventItem(event: AgendaEvent, onEnabledChanged: (AgendaEvent, Boolean) -> Unit, enabled: Boolean) {
+private fun AgendaEventItem(event: AgendaEvent, providerAndAccount: String, onEnabledChanged: (AgendaEvent, Boolean) -> Unit, enabled: Boolean) {
     val dateTime = Instant.ofEpochMilli(event.beginAt).atZone(ZoneId.systemDefault())
     val alarmTime = dateTime.minusMinutes(event.reminderMinutes.toLong())
     val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
@@ -259,6 +303,7 @@ private fun AgendaEventItem(event: AgendaEvent, onEnabledChanged: (AgendaEvent, 
             Column(Modifier.weight(1f)) {
                 Text(event.title, style = MaterialTheme.typography.titleMedium)
                 Text("${dateFormatter.format(dateTime)} · ${timeFormatter.format(dateTime)}", style = MaterialTheme.typography.bodyMedium)
+                Text(providerAndAccount, style = MaterialTheme.typography.bodySmall)
                 Text(stringResource(R.string.agenda_alarm_at, timeFormatter.format(alarmTime)), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(8.dp))

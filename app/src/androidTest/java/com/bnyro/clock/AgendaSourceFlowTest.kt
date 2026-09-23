@@ -26,20 +26,21 @@ class AgendaSourceFlowTest {
         compose.onNodeWithTag("choose-local").assertIsDisplayed()
         compose.onNodeWithTag("choose-oauth").assertIsDisplayed().performClick()
         compose.onNodeWithTag("choose-local").assertDoesNotExist()
-        compose.onNodeWithTag("add-google-account").assertIsDisplayed()
+        compose.onNodeWithTag("manage-google-accounts").assertIsDisplayed()
     }
 
     @Test fun localNeverRendersOAuthAccountsOrEvents() {
         render(mutableStateOf(AgendaUiState(true, AgendaSource.LOCAL, listOf(account), mixedEvents())))
         compose.onNodeWithTag("disconnect-local").assertIsDisplayed()
         compose.onNodeWithTag("oauth-account").assertDoesNotExist()
-        compose.onNodeWithTag("add-google-account").assertDoesNotExist()
+        compose.onNodeWithTag("manage-google-accounts").assertDoesNotExist()
         compose.onNodeWithText("Local event").assertIsDisplayed()
         compose.onNodeWithText("Remote event").assertDoesNotExist()
     }
 
     @Test fun oauthShowsProviderAndProfileButNeverLocalControlsOrEvents() {
         render(mutableStateOf(AgendaUiState(true, AgendaSource.OAUTH, listOf(account), mixedEvents())))
+        compose.onNodeWithTag("manage-google-accounts").performClick()
         compose.onNodeWithText("Google Calendar", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText(account.displayName, useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText(account.email, useUnmergedTree = true).assertIsDisplayed()
@@ -53,6 +54,7 @@ class AgendaSourceFlowTest {
         val state = mutableStateOf(AgendaUiState(true, AgendaSource.OAUTH, listOf(account)))
         var disconnected = 0
         render(state) { disconnected++; state.value = AgendaUiState(loaded = true) }
+        compose.onNodeWithTag("manage-google-accounts").performClick()
         compose.onNodeWithTag("disconnect-all").performScrollTo().performClick()
         compose.onNodeWithTag("choose-local").assertDoesNotExist()
         assertEquals(0, disconnected)

@@ -153,6 +153,9 @@
     <string name="agenda_oauth_description">Conecte uma ou mais contas Google diretamente, sem depender da sincronização de agenda do Android.</string>
     <string name="agenda_local_permission">Permita o acesso à agenda para mostrar os eventos deste aparelho.</string>
     <string name="agenda_disconnect_local">Desconectar agenda local</string>
+    <string name="agenda_manage_google_accounts">Contas Google (%1$d)</string>
+    <string name="agenda_google_accounts_title">Contas Google</string>
+    <string name="agenda_google_accounts_description">Gerencie as contas usadas para sincronizar o Google Calendar.</string>
     <string name="agenda_add_google_account">Adicionar conta Google</string>
     <string name="agenda_reconnect">Reconectar</string>
     <string name="agenda_remove_account">Remover conta</string>
@@ -167,4 +170,7 @@
     <string name="agenda_sync_failed">Não foi possível atualizar a agenda. Verifique sua conexão e tente novamente.</string>
     <string name="agenda_partial_sync">Algumas contas não puderam ser atualizadas. Confira os cartões das contas abaixo.</string>
     <string name="agenda_disconnect_failed">Não foi possível revogar todo o acesso. A fonte continua selecionada. Verifique sua conexão e tente novamente.</string>
+    <string name="agenda_event_provider_local">Agenda local · Este dispositivo</string>
+    <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>
+    <string name="agenda_event_provider_google_unknown">Google Calendar</string>
 </resources>

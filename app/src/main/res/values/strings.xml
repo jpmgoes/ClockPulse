@@ -356,6 +356,9 @@
     <string name="agenda_oauth_description">Connect one or more Google accounts directly, independently of Android calendar sync.</string>
     <string name="agenda_local_permission">Allow calendar access to display events from this device.</string>
     <string name="agenda_disconnect_local">Disconnect local calendar</string>
+    <string name="agenda_manage_google_accounts">Google accounts (%1$d)</string>
+    <string name="agenda_google_accounts_title">Google accounts</string>
+    <string name="agenda_google_accounts_description">Manage the accounts used to sync Google Calendar.</string>
     <string name="agenda_add_google_account">Add Google account</string>
     <string name="agenda_reconnect">Reconnect</string>
     <string name="agenda_remove_account">Remove account</string>
@@ -370,4 +373,7 @@
     <string name="agenda_sync_failed">Could not update the calendar. Check your connection and try again.</string>
     <string name="agenda_partial_sync">Some accounts could not be updated. Check the account cards below.</string>
     <string name="agenda_disconnect_failed">Could not revoke access completely. The source remains selected. Check your connection and try again.</string>
+    <string name="agenda_event_provider_local">Local calendar · This device</string>
+    <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>
+    <string name="agenda_event_provider_google_unknown">Google Calendar</string>
 </resources>
