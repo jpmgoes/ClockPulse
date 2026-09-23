@@ -26,6 +26,33 @@
 - [x] Convenient user interface
 - [x] Written in Jetpack Compose 
 
+## Google Calendar via OAuth
+
+The Agenda tab can use one source at a time:
+
+- **Local calendar** reads the device Calendar Provider after the user grants calendar permission.
+- **Google Calendar via OAuth** lets the user connect multiple Google accounts. The Agenda lists each account as `Google Calendar` with its associated profile name and email.
+
+These sources are deliberately exclusive. Selecting Google hides local-calendar events and controls. To return to Local, choose **Disconnect all** in the OAuth source; this revokes every connected account and removes all agenda events and alarms belonging to that source before the source selector is shown again. Removing one Google account only removes that account's events and alarms.
+
+### Google Cloud setup for development
+
+Create an Android OAuth client for every signing identity that will run the app:
+
+| Variant | Android package name | Certificate fingerprint |
+| --- | --- | --- |
+| Debug | `app.clock.pulse.debug` | Debug keystore SHA-1 |
+| Release | `app.clock.pulse` | Release signing-key SHA-1 |
+
+Enable the Google Calendar API and add these scopes to the consent configuration:
+
+- `https://www.googleapis.com/auth/calendar.readonly`
+- `openid`
+- `email`
+- `profile`
+
+While the OAuth consent screen is in Testing, add every Google account used for testing as a test user. The app uses direct Android OAuth and keeps access tokens only in memory. Do **not** add a downloaded `client_secret*.json`, a client secret, a refresh token, or a Web OAuth client credential to this repository or APK.
+
 <!-- ---------- Download ---------- -->
 ## Download
 
