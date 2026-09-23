@@ -110,7 +110,7 @@
     <string name="digital_clock_widget">Widget orologio digitale</string>
     <string name="notification_permission_description">Abilita le notifiche per essere sicuro di non perdere mai una sveglia o un timer. Ti invieremo avvisi solo per le sveglie e i timer che hai impostato.</string>
     <string name="notification_permission_title">Autorizzazione alle notifiche</string>
-    <string name="alarm_permission_description">Per svegliarti in orario, Clock You ha bisogno dell\'autorizzazione a programmare le sveglie.</string>
+    <string name="alarm_permission_description">Per svegliarti in orario, Clock Pulse ha bisogno dell\'autorizzazione a programmare le sveglie.</string>
     <string name="alarm_permission_title">Autorizzazione per le sveglie</string>
     <string name="allow">Consenti</string>
     <string name="maybe_later">Forse più tardi</string>
@@ -140,7 +140,7 @@
     <string name="cancel">Annulla</string>
     <string name="upcoming_alarm_content">Si spegnerà alle %1$s</string>
     <string name="general">Generali</string>
-    <string name="clock_you_version">Versione di Clock You</string>
+    <string name="clock_pulse_version">Versione di Clock Pulse</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">Scegli colore personalizzato</string>
     <string name="custom_color">Colore personalizzato</string>

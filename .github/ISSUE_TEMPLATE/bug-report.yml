@@ -37,11 +37,11 @@ body:
       required: true
 
   - type: input
-    id: Clock_You-version
+    id: Clock_Pulse-version
     attributes:
-      label: Clock You version
+      label: Clock Pulse version
       description: |
-        You can find your Clock You version in **About**.
+        You can find your Clock Pulse version in **About**.
       placeholder: |
         Example: "0.5.0"
     validations:

@@ -123,7 +123,7 @@
     <string name="overall_time">Tempo total</string>
     <string name="show_date">Mostrar Data</string>
     <string name="notification_permission_description">Permita notificações para que não perca nenhum alarme ou temporizador. Mandaremos apenas alertas para seus alarmes e timers configurados.</string>
-    <string name="alarm_permission_description">Para lhe acordar na hora, o Clock You necessita da permissão de configuração de alarmes.</string>
+    <string name="alarm_permission_description">Para lhe acordar na hora, o Clock Pulse necessita da permissão de configuração de alarmes.</string>
     <string name="alarm_permission_title">Permissão de Alarme</string>
     <string name="allow">Permitir</string>
     <string name="maybe_later">Talvez depois</string>
@@ -173,4 +173,10 @@
     <string name="agenda_event_provider_local">Agenda local · Este dispositivo</string>
     <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>
     <string name="agenda_event_provider_google_unknown">Google Calendar</string>
+    <string name="agenda_sync_notifications">Sincronização da agenda</string>
+    <string name="agenda_events_added_from">%1$s · %2$s</string>
+    <plurals name="agenda_events_added_notification_title">
+        <item quantity="one">%d novo evento adicionado</item>
+        <item quantity="other">%d novos eventos adicionados</item>
+    </plurals>
 </resources>

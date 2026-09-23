@@ -121,7 +121,7 @@
     <string name="subtract_minutes">Зменшити на %d хв</string>
     <string name="notification_permission_description">Увімкніть сповіщення, щоб ніколи не пропустити будильник або таймер. Ми надсилатимемо сповіщення лише за встановленими вами будильниками та таймерами.</string>
     <string name="notification_permission_title">Дозвіл на сповіщення</string>
-    <string name="alarm_permission_description">Щоб прокинутися вчасно, Clock You потребує дозволу на планування будильників.</string>
+    <string name="alarm_permission_description">Щоб прокинутися вчасно, Clock Pulse потребує дозволу на планування будильників.</string>
     <string name="alarm_permission_title">Дозвіл на будильник</string>
     <string name="allow">Дозволити</string>
     <string name="maybe_later">Пізніше</string>
@@ -166,7 +166,7 @@
     <string name="apply">Застосувати</string>
     <string name="cancel">Скасувати</string>
     <string name="general">Загальні</string>
-    <string name="clock_you_version">Версія Clock You</string>
+    <string name="clock_pulse_version">Версія Clock Pulse</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">Вибрати власний колір</string>
     <string name="custom_color">Власний колір</string>

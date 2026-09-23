@@ -107,7 +107,7 @@
     <string name="start">Start</string>
     <string name="notification_permission_description">Zezwalaj na powiadomienia, aby mieć pewność, że nigdy nie przegapisz alarmu ani minutnika. Będziemy wysyłać alerty tylko dla ustawionych alarmów i minutników.</string>
     <string name="notification_permission_title">Pozwolenie na powiadomienia</string>
-    <string name="alarm_permission_description">Aby obudzić Cię na czas, Clock You potrzebuje pozwolenia na planowanie alarmów.</string>
+    <string name="alarm_permission_description">Aby obudzić Cię na czas, Clock Pulse potrzebuje pozwolenia na planowanie alarmów.</string>
     <string name="alarm_permission_title">Zezwolenie na alarm</string>
     <string name="allow">Pozwól</string>
     <string name="maybe_later">Może później</string>
@@ -154,7 +154,7 @@
     <string name="blue">Niebieski</string>
     <string name="cancel">Anuluj</string>
     <string name="general">Ogólne</string>
-    <string name="clock_you_version">Wersja Clock You</string>
+    <string name="clock_pulse_version">Wersja Clock Pulse</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">Wybierz niestandardowy kolor</string>
     <string name="custom_color">Kolor niestandardowy</string>

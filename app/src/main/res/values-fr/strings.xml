@@ -102,7 +102,7 @@
     <string name="timezone">Fuseau horaire</string>
     <string name="use_a_different_time_zone_for_the_widget">Utiliser un fuseau horaire différent pour le widget</string>
     <string name="notification_permission_title">Autorisation de notification</string>
-    <string name="alarm_permission_description">Pour vous réveiller à l\'heure, Clock You a besoin de l\'autorisation de programmer des alarmes.</string>
+    <string name="alarm_permission_description">Pour vous réveiller à l\'heure, Clock Pulse a besoin de l\'autorisation de programmer des alarmes.</string>
     <string name="allow">Permettre</string>
     <string name="maybe_later">Peut-être plus tard</string>
     <string name="subtract_minutes">Soustraire %d minutes</string>

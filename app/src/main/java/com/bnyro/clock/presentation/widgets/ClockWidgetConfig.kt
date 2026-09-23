@@ -83,7 +83,7 @@ import com.bnyro.clock.presentation.screens.clock.components.TimeZonePickerDialo
 import com.bnyro.clock.presentation.screens.clock.model.ClockModel
 import com.bnyro.clock.presentation.screens.settings.components.SettingsCategory
 import com.bnyro.clock.presentation.screens.settings.model.SettingsModel
-import com.bnyro.clock.ui.theme.ClockYouTheme
+import com.bnyro.clock.ui.theme.ClockPulseTheme
 import com.bnyro.clock.util.ThemeUtil
 import com.bnyro.clock.util.widgets.TextColor
 import com.bnyro.clock.util.widgets.getColorValue
@@ -127,7 +127,7 @@ abstract class ClockWidgetConfig : ComponentActivity() {
                 SettingsModel.Theme.DARK, SettingsModel.Theme.AMOLED -> true
                 else -> false
             }
-            ClockYouTheme(
+            ClockPulseTheme(
                 darkTheme = darkTheme,
                 customColorScheme = ThemeUtil.getSchemeFromSeed(
                     settingsModel.customColor,

@@ -161,7 +161,7 @@
     <string name="green">أخضر</string>
     <string name="blue">أزرق</string>
     <string name="cancel">إلغاء</string>
-    <string name="clock_you_version">إصدار Clock You</string>
+    <string name="clock_pulse_version">إصدار Clock Pulse</string>
     <string name="general">عام</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">اختر لونًا مخصصًا</string>

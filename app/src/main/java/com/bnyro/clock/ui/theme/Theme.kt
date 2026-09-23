@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 @Composable
-fun ClockYouTheme(
+fun ClockPulseTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     customColorScheme: ColorScheme,
     dynamicColor: Boolean = true,

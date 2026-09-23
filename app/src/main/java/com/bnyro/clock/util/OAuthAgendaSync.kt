@@ -26,7 +26,11 @@ class OAuthAgendaSync(
     private val clock: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault
 ) {
-    data class Outcome(val eventCount: Int, val failedAccountIds: Set<String>)
+    data class Outcome(
+        val eventCount: Int,
+        val failedAccountIds: Set<String>,
+        val addedEventsByAccount: Map<String, Int>
+    )
 
     /** Must only be invoked by the OAuth branch of AgendaSourceRepository.sync. */
     suspend fun syncAccounts(): Outcome {
@@ -42,6 +46,7 @@ class OAuthAgendaSync(
             ownsAlarm = { key -> key.startsWith("google:") && prefixes.none(key::startsWith) }
         )
         val failed = mutableSetOf<String>()
+        val addedEventsByAccount = mutableMapOf<String, Int>()
         for (account in profiles.filter { it.state == "CONNECTED" }) {
             val snapshot = try {
                 fetchEvents(account, start.toInstant().toEpochMilli(), end.toInstant().toEpochMilli())
@@ -51,16 +56,23 @@ class OAuthAgendaSync(
                 continue
             }
             require(snapshot.all { it.connectionId == account.id && it.eventKey.startsWith(accountEventPrefix(account.id)) })
-            updateAccount(account.id, snapshot, zoneId)
+            val addedEvents = updateAccount(account.id, snapshot, zoneId)
+            if (addedEvents > 0) addedEventsByAccount[account.id] = addedEvents
             accounts.updateLastSyncedAt(account.id, now)
         }
-        return Outcome(events.getEvents().count { it.connectionId in connectedIds }, failed)
+        return Outcome(
+            eventCount = events.getEvents().count { it.connectionId in connectedIds },
+            failedAccountIds = failed,
+            addedEventsByAccount = addedEventsByAccount
+        )
     }
 
-    private suspend fun updateAccount(accountId: String, snapshot: List<RemoteAgendaEvent>, zoneId: ZoneId) {
+    private suspend fun updateAccount(accountId: String, snapshot: List<RemoteAgendaEvent>, zoneId: ZoneId): Int {
         val existing = events.getEvents().filter { it.connectionId == accountId }.associateBy { it.eventKey }
+        var addedEvents = 0
         for (remote in snapshot) {
             val previous = existing[remote.eventKey]
+            if (previous == null) addedEvents++
             val enabled = previous?.enabled ?: true
             // Google string IDs live in the namespaced key; the numeric columns belong to Android.
             val event = AgendaEvent(
@@ -92,6 +104,7 @@ class OAuthAgendaSync(
         removeEvents(existing.values.filter { it.eventKey !in currentKeys }) { key ->
             key.startsWith(prefix) && key !in currentKeys
         }
+        return addedEvents
     }
 
     private suspend fun removeEvents(stale: List<AgendaEvent>, ownsAlarm: (String) -> Boolean) {

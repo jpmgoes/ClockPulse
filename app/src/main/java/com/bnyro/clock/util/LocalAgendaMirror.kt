@@ -17,16 +17,19 @@ class LocalAgendaMirror(
     private val cancelAlarm: (Alarm) -> Unit,
     private val enqueueAlarm: (Alarm) -> Unit
 ) {
-    suspend fun update(sourceEvents: List<AgendaEvent>) {
+    /** Returns source events that were not present before this snapshot. */
+    suspend fun update(sourceEvents: List<AgendaEvent>): List<AgendaEvent> {
         val localEvents = events.getEvents()
             .filter { it.connectionId == null }
             .associateBy { it.eventKey }
         val migratedLegacyKeys = mutableSetOf<String>()
+        val addedEvents = mutableListOf<AgendaEvent>()
 
         sourceEvents.forEach { source ->
             val legacyKey = source.eventKey.removePrefix("local:${source.calendarId}:")
             val existing = localEvents[source.eventKey]
                 ?: localEvents[legacyKey]?.takeUnless { it.eventKey in migratedLegacyKeys }
+            if (existing == null) addedEvents += source
             val enabled = existing?.enabled ?: true
             val alarm = buildAlarm(source, existing?.alarmId ?: 0L, enabled)
             val storedAlarm = existing?.let { alarms.getAlarmById(it.alarmId) }
@@ -63,6 +66,7 @@ class LocalAgendaMirror(
             events.delete(stale.eventKey)
             alarmReferences[stale.alarmId] = alarmReferences.getOrDefault(stale.alarmId, 0) - 1
         }
+        return addedEvents
     }
 
     private fun buildAlarm(event: AgendaEvent, id: Long, enabled: Boolean): Alarm {

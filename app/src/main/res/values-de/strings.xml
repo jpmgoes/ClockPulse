@@ -119,7 +119,7 @@
     <string name="notification_permission_description">Erlauben Sie Benachrichtigungen, um sicherzustellen, dass Sie keinen Alarm oder Timer verpassen. Wir senden nur für eingestellte Alarme und Timer Benachrichtigungen.</string>
     <string name="add_minutes">%d Minuten hinzufügen</string>
     <string name="subtract_minutes">%d Minuten abziehen</string>
-    <string name="alarm_permission_description">Um Sie rechtzeitig aufzuwecken braucht Clock You die Erlaubnis, Wecker zu planen.</string>
+    <string name="alarm_permission_description">Um Sie rechtzeitig aufzuwecken braucht Clock Pulse die Erlaubnis, Wecker zu planen.</string>
     <string name="alarm_permission_title">Alarmberechtigung</string>
     <string name="snooze_minutes">%d Minuten schlummern</string>
     <string name="timer_restart">Neustart</string>

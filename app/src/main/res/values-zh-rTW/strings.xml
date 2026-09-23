@@ -80,7 +80,7 @@
     </plurals>
     <string name="notification_permission_description">允許通知來確保你不會錯過任何一個鬧鐘或者定時器。該軟體只會依據你設定的而傳送通知。</string>
     <string name="notification_permission_title">通知權限</string>
-    <string name="alarm_permission_description">為了準時叫醒你，Clock You需要排定鬧鐘的權限。</string>
+    <string name="alarm_permission_description">為了準時叫醒你，Clock Pulse需要排定鬧鐘的權限。</string>
     <string name="alarm_permission_title">鬧鐘權限</string>
     <string name="allow">允許</string>
     <string name="maybe_later">稍後</string>

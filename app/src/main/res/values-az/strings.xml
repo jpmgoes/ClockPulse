@@ -95,7 +95,7 @@
     </plurals>
     <string name="notification_permission_description">Siqnal və ya taymeri unutmadığınızdan əmin olmaq üçün Bildirişlərə icazə verin. Biz yalnız təyin etdiyiniz siqnallar və taymerlər üçün xəbərdarlıq göndərəcəyik.</string>
     <string name="notification_permission_title">Bildiriş İcazəsi</string>
-    <string name="alarm_permission_description">Sizi vaxtında oyatmaq üçün, Clock You siqnalları planlaşdırmağa icazə istəyir.</string>
+    <string name="alarm_permission_description">Sizi vaxtında oyatmaq üçün, Clock Pulse siqnalları planlaşdırmağa icazə istəyir.</string>
     <string name="alarm_permission_title">Siqnal İcazəsi</string>
     <string name="allow">İcazə ver</string>
     <string name="maybe_later">Bəlkə sonra</string>

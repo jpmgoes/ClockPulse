@@ -26,7 +26,7 @@
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:supportsRtl="true"
-            android:theme="@style/Theme.ClockYou"
+            android:theme="@style/Theme.ClockPulse"
             android:enableOnBackInvokedCallback="true"
             tools:targetApi="34">
 
@@ -57,7 +57,7 @@
         <activity
                 android:name=".ui.MainActivity"
                 android:exported="true"
-                android:theme="@style/Theme.ClockYou">
+                android:theme="@style/Theme.ClockPulse">
             <intent-filter>
                 <action android:name="android.intent.action.SET_ALARM" />
                 <action android:name="android.intent.action.SET_TIMER" />
@@ -120,7 +120,7 @@
                 android:excludeFromRecents="true"
                 android:launchMode="singleInstance"
                 android:taskAffinity=""
-                android:theme="@style/Theme.ClockYou" />
+                android:theme="@style/Theme.ClockPulse" />
 
         <receiver
                 android:name=".util.receivers.AlarmReceiver"
@@ -145,7 +145,7 @@
                 android:excludeFromRecents="true"
                 android:launchMode="singleInstance"
                 android:taskAffinity=""
-                android:theme="@style/Theme.ClockYou" />
+                android:theme="@style/Theme.ClockPulse" />
 
         <receiver
                 android:name=".util.services.TimerAlarmReceiver"

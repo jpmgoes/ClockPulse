@@ -28,7 +28,7 @@ import com.bnyro.clock.presentation.screens.permission.PermissionModel
 import com.bnyro.clock.presentation.screens.settings.model.SettingsModel
 import com.bnyro.clock.presentation.screens.stopwatch.model.StopwatchModel
 import com.bnyro.clock.presentation.screens.timer.model.TimerModel
-import com.bnyro.clock.ui.theme.ClockYouTheme
+import com.bnyro.clock.ui.theme.ClockPulseTheme
 import com.bnyro.clock.util.Preferences
 import com.bnyro.clock.util.ThemeUtil
 import com.bnyro.clock.util.services.StopwatchService
@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
 
         initialTab = when (intent?.action) {
             SHOW_STOPWATCH_ACTION -> HomeRoutes.Stopwatch
+            SHOW_AGENDA_ACTION -> HomeRoutes.Agenda
             AlarmClock.ACTION_SET_ALARM, AlarmClock.ACTION_SHOW_ALARMS -> HomeRoutes.Alarm
             AlarmClock.ACTION_SET_TIMER, AlarmClock.ACTION_SHOW_TIMERS -> HomeRoutes.Timer
             else -> homeRoutes.first {
@@ -118,7 +119,7 @@ class MainActivity : ComponentActivity() {
                 SettingsModel.Theme.DARK, SettingsModel.Theme.AMOLED -> true
                 else -> false
             }
-            ClockYouTheme(
+            ClockPulseTheme(
                 darkTheme = darkTheme,
                 customColorScheme = ThemeUtil.getSchemeFromSeed(
                     settingsModel.customColor,
@@ -191,5 +192,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val SHOW_STOPWATCH_ACTION = "com.bnyro.clock.SHOW_STOPWATCH_ACTION"
+        const val SHOW_AGENDA_ACTION = "app.clock.pulse.SHOW_AGENDA"
     }
 }

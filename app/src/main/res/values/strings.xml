@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Clock You</string>
+    <string name="app_name" translatable="false">Clock Pulse</string>
     <!-- Navigation -->
     <string name="clock">Clock</string>
     <string name="alarm">Alarm</string>
@@ -93,7 +93,7 @@
     <string name="dark">Dark</string>
     <string name="source_code">Source code</string>
     <string name="source_code_summary">View the app\'s source code</string>
-    <string name="clock_you_version">Clock You version</string>
+    <string name="clock_pulse_version">Clock Pulse version</string>
     <string name="version_value">%1$s (%2$s)</string>
     <!-- Widgets -->
 
@@ -300,7 +300,7 @@
     <string name="digital_clock_widget">Digital Clock Widget</string>
     <string name="notification_permission_description">Allow notifications to ensure you never miss an alarm or timer. We\'ll only send alerts for your set alarms and timers.</string>
     <string name="notification_permission_title">Notification Permission</string>
-    <string name="alarm_permission_description">To wake you up on time, Clock You needs permission to schedule alarms.</string>
+    <string name="alarm_permission_description">To wake you up on time, Clock Pulse needs permission to schedule alarms.</string>
     <string name="alarm_permission_title">Alarm Permission</string>
     <string name="allow">Allow</string>
     <string name="maybe_later">Maybe later</string>
@@ -376,4 +376,10 @@
     <string name="agenda_event_provider_local">Local calendar · This device</string>
     <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>
     <string name="agenda_event_provider_google_unknown">Google Calendar</string>
+    <string name="agenda_sync_notifications">Agenda sync</string>
+    <string name="agenda_events_added_from">%1$s · %2$s</string>
+    <plurals name="agenda_events_added_notification_title">
+        <item quantity="one">%d new agenda event</item>
+        <item quantity="other">%d new agenda events</item>
+    </plurals>
 </resources>

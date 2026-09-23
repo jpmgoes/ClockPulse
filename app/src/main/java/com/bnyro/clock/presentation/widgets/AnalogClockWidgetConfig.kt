@@ -57,7 +57,7 @@ import com.bnyro.clock.R
 import com.bnyro.clock.domain.model.AnalogClockFace
 import com.bnyro.clock.domain.model.AnalogClockWidgetOptions
 import com.bnyro.clock.presentation.screens.settings.model.SettingsModel
-import com.bnyro.clock.ui.theme.ClockYouTheme
+import com.bnyro.clock.ui.theme.ClockPulseTheme
 import com.bnyro.clock.util.ThemeUtil
 import com.bnyro.clock.util.widgets.hasAnalogClockWidgetSettings
 import com.bnyro.clock.util.widgets.loadAnalogClockWidgetSettings
@@ -93,7 +93,7 @@ class AnalogClockWidgetConfig : ComponentActivity() {
                 SettingsModel.Theme.DARK, SettingsModel.Theme.AMOLED -> true
                 else -> false
             }
-            ClockYouTheme(
+            ClockPulseTheme(
                 darkTheme = darkTheme,
                 customColorScheme = ThemeUtil.getSchemeFromSeed(
                     settingsModel.customColor,

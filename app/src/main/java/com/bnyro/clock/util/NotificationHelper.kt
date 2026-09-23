@@ -17,6 +17,7 @@ object NotificationHelper {
     const val TIMER_FINISHED_CHANNEL = "timer_finished_silent"
     const val ALARM_CHANNEL = "alarm_silent"
     const val MISSED_ALARM_CHANNEL = "missed_alarm"
+    const val AGENDA_SYNC_CHANNEL = "agenda_sync"
 
     val vibrationPattern = longArrayOf(0, 1000, 1000, 1000, 1000)
 
@@ -94,6 +95,12 @@ object NotificationHelper {
                 NotificationManagerCompat.IMPORTANCE_DEFAULT
             )
                 .setName(context.getString(R.string.missed_alarms))
+                .build(),
+            NotificationChannelCompat.Builder(
+                AGENDA_SYNC_CHANNEL,
+                NotificationManagerCompat.IMPORTANCE_DEFAULT
+            )
+                .setName(context.getString(R.string.agenda_sync_notifications))
                 .build()
         )
 

@@ -112,7 +112,7 @@
     <string name="show_time">Zobrazit čas</string>
     <string name="digital_clock_widget">Widget digitálních hodin</string>
     <string name="notification_permission_title">Oprávnění k oznámením</string>
-    <string name="alarm_permission_description">Aplikace Clock You potřebuje oprávnění k plánování budíků, aby vás mohla včas probudit.</string>
+    <string name="alarm_permission_description">Aplikace Clock Pulse potřebuje oprávnění k plánování budíků, aby vás mohla včas probudit.</string>
     <string name="alarm_permission_title">Oprávnění k budíkům</string>
     <string name="allow">Povolit</string>
     <string name="preview">Náhled</string>

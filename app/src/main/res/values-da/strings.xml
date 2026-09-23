@@ -98,7 +98,7 @@
     <string name="save">Gem</string>
     <string name="date_text_size">Dato Tekststørrelse</string>
     <string name="notification_permission_description">Tillad Meddelelser for at sikre, at du aldrig går glip af en alarm eller timer. Vi sender kun advarsler om dine indstillede alarmer og timere.</string>
-    <string name="alarm_permission_description">For at vække dig til tiden, kræver Clock You tilladelse til at planlægge alarmer.</string>
+    <string name="alarm_permission_description">For at vække dig til tiden, kræver Clock Pulse tilladelse til at planlægge alarmer.</string>
     <string name="alarm_permission_title">Alarmtilladelse</string>
     <string name="preview">Forhåndsvis</string>
     <string name="snooze_minutes">Slumre %d minutter</string>

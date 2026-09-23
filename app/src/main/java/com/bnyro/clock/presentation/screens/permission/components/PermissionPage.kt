@@ -90,7 +90,7 @@ fun PermissionRequestPage(
 fun PermissionRequestPagePreview() {
     PermissionRequestPage(
         title = "Alarm Permission",
-        subtitle = "To wake you up on time, Clock You needs permission to schedule alarms.",
+        subtitle = "To wake you up on time, Clock Pulse needs permission to schedule alarms.",
         onClickConfirm = {},
         onClickCancel = {},
         icon = R.drawable.ic_alarm

@@ -36,7 +36,7 @@ object Preferences {
 
 
     fun init(context: Context) {
-        instance = context.getSharedPreferences("clock_you", Context.MODE_PRIVATE)
+        instance = context.getSharedPreferences("clock_pulse", Context.MODE_PRIVATE)
 
         val timerPickerStyle = instance.all[timerPickerStyleKey]
         val alarmPickerStyle = instance.all[alarmPickerStyleKey]

@@ -106,7 +106,7 @@
     <string name="show_widget_background">विजेट पृष्ठभूमि दिखाएं</string>
     <string name="digital_clock_widget">डिजिटल घड़ी विजेट</string>
     <string name="notification_permission_title">अधिसूचना अनुमति</string>
-    <string name="alarm_permission_description">आपको समय पर जगाने के लिए, Clock You को अलार्म अनुसूचित करने की अनुमति की आवश्यकता होती है।</string>
+    <string name="alarm_permission_description">आपको समय पर जगाने के लिए, Clock Pulse को अलार्म अनुसूचित करने की अनुमति की आवश्यकता होती है।</string>
     <string name="alarm_permission_title">अलार्म अनुमति</string>
     <string name="allow">अनुमति दें</string>
     <string name="maybe_later">संभवतः बाद में</string>

@@ -59,7 +59,7 @@ fun TextColor.getColorValue(context: Context, customColorInt: Int? = null): Int 
         }
     }
 
-    val themedContext = ContextThemeWrapper(context, R.style.Theme_ClockYou)
+    val themedContext = ContextThemeWrapper(context, R.style.Theme_ClockPulse)
     val typedValue = TypedValue()
     if (themedContext.theme.resolveAttribute(this.attrInt, typedValue, true)) {
         if (typedValue.type >= TypedValue.TYPE_FIRST_COLOR_INT &&

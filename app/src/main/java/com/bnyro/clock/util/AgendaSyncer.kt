@@ -46,6 +46,15 @@ class AgendaSyncer(
             enqueueAlarm = { AlarmHelper.enqueue(appContext, it) },
             untitledEvent = appContext.getString(com.bnyro.clock.R.string.untitled_event)
         ).syncAccounts()
+        val accountsById = container.oauthAccountsRepository.getAccounts().associateBy { it.id }
+        result.addedEventsByAccount.forEach { (accountId, eventCount) ->
+            val account = accountsById[accountId] ?: return@forEach
+            AgendaSyncNotificationPublisher(appContext).publish(
+                provider = "Google Calendar",
+                account = "${account.displayName} (${account.email})",
+                eventCount = eventCount
+            )
+        }
         return Result.Success(result.eventCount, result.failedAccountIds)
     }
 
@@ -65,14 +74,22 @@ class AgendaSyncer(
         val now = System.currentTimeMillis()
         val windowStart = AgendaSyncWindow.startOfCurrentDay(now, ZoneId.systemDefault())
         val windowEnd = now + TimeUnit.DAYS.toMillis(7)
-        val googleCalendarIds = queryGoogleCalendarIds()
-        val sourceEvents = queryEvents(windowStart, windowEnd, googleCalendarIds)
-        LocalAgendaMirror(
+        val googleCalendars = queryGoogleCalendars()
+        val sourceEvents = queryEvents(windowStart, windowEnd, googleCalendars.keys)
+        val addedEvents = LocalAgendaMirror(
             container.agendaRepository,
             container.alarmRepository,
             cancelAlarm = { AlarmHelper.cancel(appContext, it) },
             enqueueAlarm = { AlarmHelper.enqueue(appContext, it) }
         ).update(sourceEvents)
+        addedEvents.groupBy { googleCalendars[it.calendarId]?.accountName }
+            .forEach { (accountName, events) ->
+                AgendaSyncNotificationPublisher(appContext).publish(
+                    provider = "Google Calendar",
+                    account = accountName ?: appContext.getString(com.bnyro.clock.R.string.agenda_event_provider_google_unknown),
+                    eventCount = events.size
+                )
+            }
 
         return Result.Success(sourceEvents.size)
     }
@@ -96,8 +113,8 @@ class AgendaSyncer(
         )
     }
 
-    private fun queryGoogleCalendarIds(): Set<Long> {
-        val projection = arrayOf(CalendarContract.Calendars._ID)
+    private fun queryGoogleCalendars(): Map<Long, GoogleCalendar> {
+        val projection = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.ACCOUNT_NAME)
         val selection = "${CalendarContract.Calendars.ACCOUNT_TYPE} = ?"
         return appContext.contentResolver.query(
             CalendarContract.Calendars.CONTENT_URI,
@@ -106,8 +123,10 @@ class AgendaSyncer(
             arrayOf("com.google"),
             null
         )?.use { cursor ->
-            buildSet {
-                while (cursor.moveToNext()) add(cursor.getLong(0))
+            buildMap {
+                while (cursor.moveToNext()) {
+                    put(cursor.getLong(0), GoogleCalendar(cursor.getString(1).orEmpty()))
+                }
             }
         }.orEmpty()
     }
@@ -250,4 +269,6 @@ class AgendaSyncer(
     private companion object {
         const val TAG = "AgendaSyncer"
     }
+
+    private data class GoogleCalendar(val accountName: String)
 }

@@ -76,7 +76,7 @@
     <plurals name="hour_minute_offset_positive">
         <item quantity="other">%d giờ và %d phút phía trước</item>
     </plurals>
-    <string name="alarm_permission_description">Để đánh thức bạn đúng giờ, Clock You cần có quyền lên lịch báo thức.</string>
+    <string name="alarm_permission_description">Để đánh thức bạn đúng giờ, Clock Pulse cần có quyền lên lịch báo thức.</string>
     <string name="alarm_permission_title">Quyền báo thức</string>
     <string name="notification_permission_title">Quyền thông báo</string>
     <string name="allow">Cho phép</string>

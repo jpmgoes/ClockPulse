@@ -112,7 +112,7 @@
     <string name="digital_clock_widget">Widget de reloj digital</string>
     <string name="notification_permission_description">Permitir las Notificaciones para asegurarte de que nunca te pierdes una alarma o un temporizador. Solo enviaremos alertas para las alarmas y temporizadores que hayas configurado.</string>
     <string name="notification_permission_title">Permiso de notificación</string>
-    <string name="alarm_permission_description">Para despertarte a tiempo, Clock You necesita permiso para programar alarmas.</string>
+    <string name="alarm_permission_description">Para despertarte a tiempo, Clock Pulse necesita permiso para programar alarmas.</string>
     <string name="alarm_permission_title">Permiso de alarma</string>
     <string name="allow">Permitir</string>
     <string name="preview">Vista previa</string>
@@ -159,7 +159,7 @@
     <string name="Import_Alarms">Importar alarmas</string>
     <string name="importdescr">Importar alarmas de Fossify</string>
     <string name="general">General</string>
-    <string name="clock_you_version">Versión de Clock You</string>
+    <string name="clock_pulse_version">Versión de Clock Pulse</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">Elegir color personalizado</string>
     <string name="custom_color">Color personalizado</string>

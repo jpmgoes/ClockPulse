@@ -107,7 +107,7 @@
     <string name="preview">预览</string>
     <string name="snooze_minutes">延后 %d 分钟</string>
     <string name="notification_permission_description">允许通知，以确保您永远不会错过闹钟或定时器。我们只会为您设置的闹钟和定时器发送提醒。</string>
-    <string name="alarm_permission_description">为了准时叫醒您，Clock You 需要设置闹钟的权限。</string>
+    <string name="alarm_permission_description">为了准时叫醒您，Clock Pulse 需要设置闹钟的权限。</string>
     <string name="notification_permission_title">通知权限</string>
     <string name="alarm_permission_title">闹钟权限</string>
     <string name="add_minutes">增加 %d 分钟</string>
@@ -139,7 +139,7 @@
     <string name="blue">蓝色</string>
     <string name="cancel">取消</string>
     <string name="general">常规</string>
-    <string name="clock_you_version">Clock You 版本</string>
+    <string name="clock_pulse_version">Clock Pulse 版本</string>
     <string name="version_value">%1$s (%2$s)</string>
     <string name="pick_custom_color">选择自定义颜色</string>
     <string name="custom_color">自定义颜色</string>

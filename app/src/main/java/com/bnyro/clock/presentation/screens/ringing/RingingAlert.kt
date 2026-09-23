@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bnyro.clock.presentation.screens.settings.model.SettingsModel
-import com.bnyro.clock.ui.theme.ClockYouTheme
+import com.bnyro.clock.ui.theme.ClockPulseTheme
 import com.bnyro.clock.util.ThemeUtil
 import com.bnyro.clock.util.TimeHelper
 import kotlinx.coroutines.delay
@@ -48,7 +48,7 @@ import java.time.ZonedDateTime
 @Composable
 fun RingingAlert(icon: Painter, controls: @Composable ColumnScope.() -> Unit) {
     val settingsModel: SettingsModel = viewModel()
-    ClockYouTheme(
+    ClockPulseTheme(
         darkTheme = true,
         customColorScheme = ThemeUtil.getSchemeFromSeed(
             settingsModel.customColor,

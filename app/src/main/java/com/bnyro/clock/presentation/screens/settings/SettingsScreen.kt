@@ -183,7 +183,7 @@ fun SettingsScreen(
             ButtonGroupPref(
                 title = "Name",
                 options = SettingsModel.AppName.entries.map {
-                    if (it == SettingsModel.AppName.DEFAULT) "Clock You" else "Clock"
+                    if (it == SettingsModel.AppName.DEFAULT) "Clock Pulse" else "Clock"
                 },
                 values = SettingsModel.AppName.entries,
                 currentValue = settingsModel.appName
@@ -453,7 +453,7 @@ fun SettingsScreen(
                 summary = stringResource(R.string.exportdesc),
                 imageVector = Icons.Default.Backup
             ) {
-                exportDocumentLauncher.launch("clockyou_export.json")
+                exportDocumentLauncher.launch("clockpulse_export.json")
             }
             HorizontalDivider(
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
@@ -465,14 +465,14 @@ fun SettingsScreen(
                 summary = stringResource(R.string.source_code_summary),
                 imageVector = Icons.AutoMirrored.Filled.OpenInNew
             ) {
-                uriHandler.openUri("https://github.com/you-apps/ClockYou")
+                uriHandler.openUri("https://github.com/you-apps/ClockPulse")
             }
             IconPreference(
-                title = stringResource(R.string.clock_you_version), summary = stringResource(
+                title = stringResource(R.string.clock_pulse_version), summary = stringResource(
                     R.string.version_value, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE
                 ), imageVector = Icons.Default.History
             ) {
-                uriHandler.openUri("https://github.com/you-apps/ClockYou/releases/latest")
+                uriHandler.openUri("https://github.com/you-apps/ClockPulse/releases/latest")
             }
             HorizontalDivider(
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),

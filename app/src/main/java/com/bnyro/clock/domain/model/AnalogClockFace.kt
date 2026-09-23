@@ -37,13 +37,13 @@ sealed class AnalogClockFace(
         secondHand = R.drawable.twod_ball_second_hand
     )
 
-    object ClassicClockYou : AnalogClockFace(
-        name = "Classic Clock You",
+    object ClassicClockPulse : AnalogClockFace(
+        name = "Classic Clock Pulse",
         author = "SuhasDissa",
         authorUrl = "https://github.com/SuhasDissa",
-        dial = R.drawable.classic_clock_you_dial,
-        hourHand = R.drawable.classic_clock_you_hour_hand,
-        minuteHand = R.drawable.classic_clock_you_minute_hand
+        dial = R.drawable.classic_clock_pulse_dial,
+        hourHand = R.drawable.classic_clock_pulse_hour_hand,
+        minuteHand = R.drawable.classic_clock_pulse_minute_hand
     )
 
     object AnalogClock : AnalogClockFace(
@@ -79,7 +79,7 @@ sealed class AnalogClockFace(
             System,
             Classic76,
             TwoDBall,
-            ClassicClockYou,
+            ClassicClockPulse,
             AnalogClock,
             MinimalisticCircular,
             MinimalisticBar
