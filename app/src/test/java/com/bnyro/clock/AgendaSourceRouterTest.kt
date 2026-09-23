@@ -54,6 +54,40 @@ class AgendaSourceRouterTest {
     fun tearDown() = database.close()
 
     @Test
+    fun lateAuthorizationCannotRestoreDisconnectedAccountOrCrossSourceReselection() = runBlocking {
+        sources.select(AgendaSource.OAUTH)
+        val oldTicket = sources.beginOAuthConnection()
+        sources.disconnectAllOAuth({}, {})
+        sources.select(AgendaSource.LOCAL)
+        assertFalse(sources.connectOAuth(oldTicket, account("late")))
+        sources.disconnectLocal {}
+        sources.select(AgendaSource.OAUTH)
+        assertFalse(sources.connectOAuth(oldTicket, account("late")))
+        val ticket = sources.beginOAuthConnection()
+        assertTrue(sources.connectOAuth(ticket, account("one")))
+        assertFalse(sources.connectOAuth(ticket, account("duplicate")))
+        val second = sources.beginOAuthConnection()
+        assertTrue(sources.connectOAuth(second, account("two")))
+        val pending = sources.beginOAuthConnection()
+        sources.disconnectOAuth("one", {}, {})
+        assertFalse(sources.connectOAuth(pending, account("one")))
+        assertEquals(listOf("two"), database.oauthAccountsDao().getAll().map { it.id })
+    }
+
+    @Test
+    fun failedRevocationAlsoInvalidatesInFlightAuthorization() = runBlocking {
+        sources.select(AgendaSource.OAUTH)
+        val connected = sources.beginOAuthConnection()
+        sources.connectOAuth(connected, account("one"))
+        val pending = sources.beginOAuthConnection()
+        assertThrows(java.io.IOException::class.java) {
+            runBlocking { sources.disconnectAllOAuth({}, { throw java.io.IOException() }) }
+        }
+        assertFalse(sources.connectOAuth(pending, account("two")))
+        assertEquals(listOf("one"), database.oauthAccountsDao().getAll().map { it.id })
+    }
+
+    @Test
     fun onlySelectedSourceRunsAndChoiceSurvivesRepositoryRecreation() = runBlocking {
         val calls = mutableListOf<String>()
         assertNull(sources.current())

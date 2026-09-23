@@ -348,4 +348,26 @@
     <string name="widget_clock_face">Clock face: %1$s</string>
     <string name="remove_widget">Remove</string>
     <string name="copied">copied</string>
+    <string name="agenda_choose_source">Choose your calendar source</string>
+    <string name="agenda_choose_description">Use calendars synced on this device or connect Google accounts directly. Only one source is used at a time.</string>
+    <string name="agenda_local_source">Local calendar</string>
+    <string name="agenda_local_description">Read Google calendars synced with Android on this device.</string>
+    <string name="agenda_oauth_source">Google Calendar via OAuth</string>
+    <string name="agenda_oauth_description">Connect one or more Google accounts directly, independently of Android calendar sync.</string>
+    <string name="agenda_local_permission">Allow calendar access to display events from this device.</string>
+    <string name="agenda_disconnect_local">Disconnect local calendar</string>
+    <string name="agenda_add_google_account">Add Google account</string>
+    <string name="agenda_reconnect">Reconnect</string>
+    <string name="agenda_remove_account">Remove account</string>
+    <string name="agenda_reconnect_required">Reconnect this account to update its events.</string>
+    <string name="agenda_account_sync_failed">Could not update this account. Its saved events are shown.</string>
+    <string name="agenda_disconnect_all">Disconnect all accounts</string>
+    <string name="agenda_disconnect_all_description">Revoke access for every Google account and delete all their synced events and alarms? You can then choose another source.</string>
+    <string name="agenda_oauth_source_lock">To use the local calendar, disconnect all Google accounts first.</string>
+    <string name="agenda_remove_description">Disconnect %1$s and delete all events and alarms from this account? Other accounts are kept.</string>
+    <string name="agenda_authorization_failed">Could not connect Google Calendar. Try again and allow calendar access. While the app is in testing, use an authorized test account.</string>
+    <string name="agenda_action_failed">Could not complete this action. Please try again.</string>
+    <string name="agenda_sync_failed">Could not update the calendar. Check your connection and try again.</string>
+    <string name="agenda_partial_sync">Some accounts could not be updated. Check the account cards below.</string>
+    <string name="agenda_disconnect_failed">Could not revoke access completely. The source remains selected. Check your connection and try again.</string>
 </resources>

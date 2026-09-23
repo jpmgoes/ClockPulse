@@ -18,6 +18,26 @@ class AgendaSourceRepository(
     private val alarms: AlarmRepository
 ) {
     private val mutex = Mutex()
+    private var connectionEpoch = 0L
+
+    /** Tickets are process-local; no authorization result survives a source reset. */
+    suspend fun beginOAuthConnection(): Long = mutex.withLock {
+        check(current() == AgendaSource.OAUTH)
+        ++connectionEpoch
+    }
+
+    suspend fun connectOAuth(epoch: Long, account: OAuthAccount, onAccepted: () -> Unit = {}): Boolean = mutex.withLock {
+        if (epoch != connectionEpoch || current() != AgendaSource.OAUTH) return@withLock false
+        val previous = accounts.findById(account.id)
+        accounts.upsert(account.copy(lastSyncedAt = previous?.lastSyncedAt))
+        onAccepted()
+        ++connectionEpoch
+        true
+    }
+
+    suspend fun cancelOAuthConnection(epoch: Long) = mutex.withLock {
+        if (connectionEpoch == epoch) ++connectionEpoch
+    }
 
     suspend fun current(): AgendaSource? = sourceDao.current()?.source
 
@@ -39,6 +59,7 @@ class AgendaSourceRepository(
         check(source != AgendaSource.LOCAL || accounts.getAccounts().isEmpty()) {
             "Disconnect all OAuth accounts before choosing the local calendar"
         }
+        ++connectionEpoch
 
         // Older versions may have mirrored local events without a source-selection row.
         if (source == AgendaSource.OAUTH) removeEvents(
@@ -81,6 +102,7 @@ class AgendaSourceRepository(
 
     suspend fun disconnectLocal(cancelAlarm: (Alarm) -> Unit) = mutex.withLock {
         check(current() != AgendaSource.OAUTH) { "OAuth is the selected agenda source" }
+        ++connectionEpoch
         removeEvents(
             belongsToSource = { it.connectionId == null },
             belongsToAlarmSource = { it.agendaEventKey?.startsWith("google:") == false },
@@ -94,6 +116,7 @@ class AgendaSourceRepository(
         revokeAccount: suspend (OAuthAccount) -> Unit
     ) = mutex.withLock {
         check(current() != AgendaSource.LOCAL) { "Local is the selected agenda source" }
+        ++connectionEpoch
         accounts.getAccounts().forEach { revokeAccount(it) }
         removeEvents(
             belongsToSource = { it.connectionId != null },
@@ -111,6 +134,7 @@ class AgendaSourceRepository(
         revokeAccount: suspend (OAuthAccount) -> Unit
     ) = mutex.withLock {
         check(current() != AgendaSource.LOCAL) { "Local is the selected agenda source" }
+        ++connectionEpoch
         accounts.findById(accountId)?.let { revokeAccount(it) }
         val prefix = accountEventPrefix(accountId)
         removeEvents(

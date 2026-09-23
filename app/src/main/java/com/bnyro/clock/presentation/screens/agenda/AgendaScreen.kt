@@ -1,62 +1,44 @@
 package com.bnyro.clock.presentation.screens.agenda
 
 import android.Manifest
-import android.database.ContentObserver
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bnyro.clock.R
 import com.bnyro.clock.domain.model.AgendaEvent
+import com.bnyro.clock.domain.model.AgendaSource
+import com.bnyro.clock.domain.model.OAuthAccount
 import com.bnyro.clock.navigation.TopBarScaffold
 import com.bnyro.clock.presentation.components.ClickableIcon
+import com.bnyro.clock.presentation.screens.agenda.model.AgendaAuthorizationLaunch
 import com.bnyro.clock.presentation.screens.agenda.model.AgendaModel
+import com.bnyro.clock.presentation.screens.agenda.model.AgendaUiState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -67,223 +49,220 @@ import java.util.Locale
 @Composable
 fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
     val context = LocalContext.current
-    var hasCalendarPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
-                PackageManager.PERMISSION_GRANTED
-        )
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val state by agendaModel.uiState.collectAsState()
+    fun permissionGranted() = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    var hasPermission by remember { mutableStateOf(permissionGranted()) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        hasPermission = it
+        if (it) agendaModel.sync(true)
     }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasCalendarPermission = granted
-        if (granted) agendaModel.sync(requestProviderSync = true)
+    val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        agendaModel.onAccountChosen(it.data.takeIf { _ -> it.resultCode == Activity.RESULT_OK })
     }
-    val events by agendaModel.events.collectAsState()
-    var showDisconnectDialog by remember { mutableStateOf(false) }
-
-    // Refresh when the screen is opened and whenever Android receives a calendar update.
-    // Google Calendar may finish syncing an event after this app has already been opened.
-    LaunchedEffect(hasCalendarPermission) {
-        if (hasCalendarPermission) agendaModel.sync(requestProviderSync = true)
+    val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        agendaModel.onConsentResult(it.data.takeIf { _ -> it.resultCode == Activity.RESULT_OK })
     }
-    DisposableEffect(context, hasCalendarPermission) {
-        if (!hasCalendarPermission) return@DisposableEffect onDispose {}
-
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                agendaModel.sync()
-            }
+    LaunchedEffect(agendaModel) {
+        agendaModel.authorizationLaunches.collect { launch ->
+            if (!agendaModel.isCurrentLaunch(launch)) return@collect
+            try {
+                when (launch) {
+                    is AgendaAuthorizationLaunch.ChooseAccount -> chooserLauncher.launch(launch.intent)
+                    is AgendaAuthorizationLaunch.Consent -> consentLauncher.launch(IntentSenderRequest.Builder(launch.intent).build())
+                }
+            } catch (_: Exception) { agendaModel.authorizationLaunchFailed() }
         }
-        context.contentResolver.registerContentObserver(
-            CalendarContract.Events.CONTENT_URI,
-            true,
-            observer
-        )
-        context.contentResolver.registerContentObserver(
-            CalendarContract.Reminders.CONTENT_URI,
-            true,
-            observer
-        )
+    }
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) hasPermission = permissionGranted()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(state.source, hasPermission, agendaModel.isChangingSource) {
+        if (state.source == AgendaSource.OAUTH || state.source == AgendaSource.LOCAL && hasPermission) {
+            agendaModel.sync(state.source == AgendaSource.LOCAL)
+        }
+    }
+    DisposableEffect(context, state.source, hasPermission) {
+        if (state.source != AgendaSource.LOCAL || !hasPermission) return@DisposableEffect onDispose {}
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) { agendaModel.sync() }
+        }
+        context.contentResolver.registerContentObserver(CalendarContract.Events.CONTENT_URI, true, observer)
+        context.contentResolver.registerContentObserver(CalendarContract.Reminders.CONTENT_URI, true, observer)
         onDispose { context.contentResolver.unregisterContentObserver(observer) }
     }
 
-    TopBarScaffold(
-        title = stringResource(R.string.agenda),
-        onClickSettings = onClickSettings,
-        actions = {
-            if (agendaModel.isSyncing) {
-                LoadingIndicator(modifier = Modifier.size(32.dp))
-            } else {
-                ClickableIcon(imageVector = Icons.Default.Refresh) {
-                    if (hasCalendarPermission) agendaModel.sync(requestProviderSync = true)
-                    else permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+    TopBarScaffold(title = stringResource(R.string.agenda), onClickSettings = onClickSettings, actions = {
+        if (agendaModel.isSyncing || agendaModel.isChangingSource || agendaModel.isConnecting) {
+            LoadingIndicator(Modifier.size(32.dp))
+        } else if (state.source != null) {
+            ClickableIcon(imageVector = Icons.Default.Refresh) { agendaModel.sync(state.source == AgendaSource.LOCAL) }
+        }
+    }) { padding ->
+        AgendaSourceContent(
+            state = state, hasPermission = hasPermission,
+            busy = agendaModel.isChangingSource || agendaModel.isConnecting,
+            errorMessage = agendaModel.errorMessage,
+            failedAccountIds = agendaModel.failedOAuthAccountIds,
+            onSelect = { source -> agendaModel.selectSource(source) {
+                if (source == AgendaSource.LOCAL && !hasPermission) permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            } },
+            onGrantPermission = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+            onAddAccount = { agendaModel.addAccount() },
+            onReconnect = { agendaModel.addAccount(it) },
+            onRemove = agendaModel::disconnectOAuth,
+            onDisconnectAll = agendaModel::disconnectAllOAuth,
+            onDisconnectLocal = { agendaModel.disconnectLocal {
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                })
+            } },
+            onEnabledChanged = agendaModel::setEnabled,
+            modifier = Modifier.padding(padding)
+        )
+    }
+}
+
+/** Pure UI boundary also used by source-exclusivity instrumented tests. */
+@Composable
+fun AgendaSourceContent(
+    state: AgendaUiState,
+    hasPermission: Boolean,
+    busy: Boolean,
+    errorMessage: Int?,
+    failedAccountIds: Set<String> = emptySet(),
+    onSelect: (AgendaSource) -> Unit,
+    onGrantPermission: () -> Unit,
+    onAddAccount: () -> Unit,
+    onReconnect: (OAuthAccount) -> Unit,
+    onRemove: (OAuthAccount) -> Unit,
+    onDisconnectAll: () -> Unit,
+    onDisconnectLocal: () -> Unit,
+    onEnabledChanged: (AgendaEvent, Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var disconnectAll by remember { mutableStateOf(false) }
+    var disconnectLocal by remember { mutableStateOf(false) }
+    var removeAccount by remember { mutableStateOf<OAuthAccount?>(null) }
+    if (!state.loaded) {
+        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (errorMessage != null) item {
+            Text(stringResource(errorMessage), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("agenda-error"))
+        }
+        when (state.source) {
+            null -> {
+                item { Text(stringResource(R.string.agenda_choose_source), style = MaterialTheme.typography.headlineSmall) }
+                item { Text(stringResource(R.string.agenda_choose_description)) }
+                item {
+                    SourceCard(R.string.agenda_local_source, R.string.agenda_local_description, "choose-local", busy) { onSelect(AgendaSource.LOCAL) }
+                }
+                item {
+                    SourceCard(R.string.agenda_oauth_source, R.string.agenda_oauth_description, "choose-oauth", busy) { onSelect(AgendaSource.OAUTH) }
                 }
             }
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            Column(Modifier.fillMaxSize()) {
-                if (!hasCalendarPermission) {
-                    AgendaPermissionContent { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }
-                } else {
-                    Text(
-                        text = stringResource(R.string.agenda_window),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    DisconnectCalendarButton { showDisconnectDialog = true }
-                    if (events.isEmpty()) {
-                        EmptyAgendaContent()
-                    } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(events, key = { it.eventKey }) { event ->
-                                AgendaEventItem(event, agendaModel::setEnabled)
+            AgendaSource.LOCAL -> {
+                item { Text(stringResource(R.string.agenda_local_source), style = MaterialTheme.typography.titleLarge) }
+                if (!hasPermission) item {
+                    Text(stringResource(R.string.agenda_local_permission))
+                    Button(onClick = onGrantPermission, enabled = !busy, modifier = Modifier.testTag("local-permission")) {
+                        Text(stringResource(R.string.agenda_connect))
+                    }
+                }
+                item {
+                    OutlinedButton(onClick = { disconnectLocal = true }, enabled = !busy, modifier = Modifier.testTag("disconnect-local")) {
+                        Text(stringResource(R.string.agenda_disconnect_local))
+                    }
+                }
+            }
+            AgendaSource.OAUTH -> {
+                item { Text(stringResource(R.string.agenda_oauth_source), style = MaterialTheme.typography.titleLarge) }
+                items(state.accounts, key = { "account:${it.id}" }) { account ->
+                    Card(Modifier.fillMaxWidth().testTag("oauth-account")) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Google Calendar", style = MaterialTheme.typography.labelLarge)
+                            Text(account.displayName, style = MaterialTheme.typography.titleMedium)
+                            Text(account.email, style = MaterialTheme.typography.bodyMedium)
+                            if (account.state == "RECONNECT_REQUIRED") Text(stringResource(R.string.agenda_reconnect_required), color = MaterialTheme.colorScheme.error)
+                            else if (account.id in failedAccountIds) Text(stringResource(R.string.agenda_account_sync_failed), color = MaterialTheme.colorScheme.error)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { onReconnect(account) }, enabled = !busy) { Text(stringResource(R.string.agenda_reconnect)) }
+                                TextButton(onClick = { removeAccount = account }, enabled = !busy) { Text(stringResource(R.string.agenda_remove_account)) }
                             }
                         }
                     }
                 }
-            }
-            if (agendaModel.isSyncing) {
-                AgendaSyncLoadingOverlay(
-                    isInitialSync = !agendaModel.hasCompletedInitialSync
-                )
+                item {
+                    Button(onClick = onAddAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) { Text(stringResource(R.string.agenda_add_google_account)) }
+                }
+                item {
+                    OutlinedButton(onClick = { disconnectAll = true }, enabled = !busy, modifier = Modifier.testTag("disconnect-all")) { Text(stringResource(R.string.agenda_disconnect_all)) }
+                    Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
-    }
-
-    if (showDisconnectDialog) {
-        AlertDialog(
-            onDismissRequest = { showDisconnectDialog = false },
-            title = { Text(stringResource(R.string.agenda_disconnect_title)) },
-            text = { Text(stringResource(R.string.agenda_disconnect_description)) },
-            confirmButton = {
-                Button(onClick = {
-                    showDisconnectDialog = false
-                    agendaModel.disconnect {
-                        context.startActivity(
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                        )
-                    }
-                }) {
-                    Text(stringResource(R.string.agenda_disconnect))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showDisconnectDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+        if (state.source != null) {
+            item { Text(stringResource(R.string.agenda_window), style = MaterialTheme.typography.bodyMedium) }
+            // Defend at the rendering boundary as well as in the repository/model.
+            val visible = state.events.filter { event ->
+                if (state.source == AgendaSource.LOCAL) hasPermission && event.connectionId == null
+                else event.connectionId != null && state.accounts.any { it.id == event.connectionId }
             }
-        )
+            if (visible.isEmpty()) item { Text(stringResource(R.string.agenda_empty)) }
+            items(visible, key = { "event:${it.eventKey}" }) { event -> AgendaEventItem(event, onEnabledChanged, !busy) }
+        }
+    }
+    if (disconnectAll) DisconnectDialog(R.string.agenda_disconnect_all, R.string.agenda_disconnect_all_description,
+        onDismiss = { disconnectAll = false }, onConfirm = { disconnectAll = false; onDisconnectAll() })
+    if (disconnectLocal) DisconnectDialog(R.string.agenda_disconnect_local, R.string.agenda_disconnect_description,
+        onDismiss = { disconnectLocal = false }, onConfirm = { disconnectLocal = false; onDisconnectLocal() })
+    removeAccount?.let { account ->
+        AlertDialog(onDismissRequest = { removeAccount = null },
+            title = { Text(stringResource(R.string.agenda_remove_account)) },
+            text = { Text(stringResource(R.string.agenda_remove_description, account.email)) },
+            confirmButton = { Button(onClick = { removeAccount = null; onRemove(account) }) { Text(stringResource(R.string.agenda_remove_account)) } },
+            dismissButton = { TextButton(onClick = { removeAccount = null }) { Text(stringResource(R.string.cancel)) } })
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AgendaSyncLoadingOverlay(isInitialSync: Boolean) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Card {
-                Column(
-                    modifier = Modifier.padding(horizontal = 40.dp, vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    LoadingIndicator(modifier = Modifier.size(96.dp))
-                    Text(
-                        text = stringResource(
-                            if (isInitialSync) R.string.agenda_initial_sync_title
-                            else R.string.agenda_syncing_title
-                        ),
-                        modifier = Modifier.padding(top = 24.dp),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        text = stringResource(R.string.agenda_syncing_description),
-                        modifier = Modifier.padding(top = 8.dp),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+private fun SourceCard(title: Int, description: Int, tag: String, busy: Boolean, onClick: () -> Unit) {
+    Card(onClick = onClick, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag(tag)) {
+        Column(Modifier.padding(20.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(description), modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
 
 @Composable
-private fun AgendaPermissionContent(onConnect: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.padding(12.dp))
-        Text(stringResource(R.string.agenda_connect_title), style = MaterialTheme.typography.titleLarge)
-        Text(
-            stringResource(R.string.agenda_connect_description),
-            modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Button(onClick = onConnect, modifier = Modifier.padding(top = 20.dp)) {
-            Text(stringResource(R.string.agenda_connect))
-        }
-    }
+private fun DisconnectDialog(title: Int, description: Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(title)) }, text = { Text(stringResource(description)) },
+        confirmButton = { Button(onClick = onConfirm, modifier = Modifier.testTag("confirm-disconnect")) { Text(stringResource(R.string.agenda_disconnect)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
 @Composable
-private fun DisconnectCalendarButton(onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-    ) {
-        Text(stringResource(R.string.agenda_disconnect))
-    }
-}
-
-@Composable
-private fun EmptyAgendaContent() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(Icons.Default.CalendarMonth, null)
-        Text(
-            stringResource(R.string.agenda_empty),
-            modifier = Modifier.padding(top = 12.dp),
-            style = MaterialTheme.typography.bodyLarge
-        )
-    }
-}
-
-@Composable
-private fun AgendaEventItem(event: AgendaEvent, onEnabledChanged: (AgendaEvent, Boolean) -> Unit) {
+private fun AgendaEventItem(event: AgendaEvent, onEnabledChanged: (AgendaEvent, Boolean) -> Unit, enabled: Boolean) {
     val dateTime = Instant.ofEpochMilli(event.beginAt).atZone(ZoneId.systemDefault())
     val alarmTime = dateTime.minusMinutes(event.reminderMinutes.toLong())
-    val locale = Locale.getDefault()
-    val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
-    Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
+    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault())
+    Card(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(event.title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${dateFormatter.format(dateTime)} · ${timeFormatter.format(dateTime)}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    stringResource(R.string.agenda_alarm_at, timeFormatter.format(alarmTime)),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text("${dateFormatter.format(dateTime)} · ${timeFormatter.format(dateTime)}", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.agenda_alarm_at, timeFormatter.format(alarmTime)), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(8.dp))
-            Switch(checked = event.enabled, onCheckedChange = { onEnabledChanged(event, it) })
+            Switch(checked = event.enabled, enabled = enabled, onCheckedChange = { onEnabledChanged(event, it) })
         }
     }
 }
