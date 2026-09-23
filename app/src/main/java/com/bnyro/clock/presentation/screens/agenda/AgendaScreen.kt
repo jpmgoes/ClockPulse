@@ -100,7 +100,10 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
 
     TopBarScaffold(title = stringResource(R.string.agenda), onClickSettings = onClickSettings, actions = {
         if (agendaModel.isSyncing || agendaModel.isChangingSource || agendaModel.isConnecting) {
-            LoadingIndicator(Modifier.size(32.dp))
+            // Keep the same 48dp action slot as IconButton so refresh and loading share a center.
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                LoadingIndicator(Modifier.size(32.dp))
+            }
         } else if (state.source != null) {
             ClickableIcon(imageVector = Icons.Default.Refresh) { agendaModel.sync(state.source == AgendaSource.LOCAL) }
         }
