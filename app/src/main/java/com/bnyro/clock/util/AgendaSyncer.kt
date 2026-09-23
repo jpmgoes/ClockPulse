@@ -12,13 +12,9 @@ import androidx.core.content.ContextCompat
 import com.bnyro.clock.App
 import com.bnyro.clock.domain.model.AgendaEvent
 import com.bnyro.clock.domain.model.AgendaSource
-import com.bnyro.clock.domain.model.Alarm
 import com.bnyro.clock.domain.model.OAuthAccount
-import com.bnyro.clock.domain.model.RepeatUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
@@ -55,51 +51,18 @@ class AgendaSyncer(
         val windowEnd = now + TimeUnit.DAYS.toMillis(7)
         val googleCalendarIds = queryGoogleCalendarIds()
         val sourceEvents = queryEvents(windowStart, windowEnd, googleCalendarIds)
-        val localEvents = container.agendaRepository.getEvents()
-            .filter { it.connectionId == null }
-            .associateBy { it.eventKey }
-
-        sourceEvents.forEach { source ->
-            val existing = localEvents[source.eventKey]
-            val enabled = existing?.enabled ?: true
-            val alarm = buildAlarm(source, existing?.alarmId ?: 0L, enabled)
-            val alarmId = if (existing == null) {
-                container.alarmRepository.addAlarm(alarm)
-            } else {
-                val storedAlarm = container.alarmRepository.getAlarmById(existing.alarmId)
-                if (storedAlarm == null) {
-                    container.alarmRepository.addAlarm(alarm)
-                } else {
-                    AlarmHelper.cancel(appContext, storedAlarm)
-                    container.alarmRepository.updateAlarm(alarm.copy(id = storedAlarm.id))
-                    storedAlarm.id
-                }
-            }
-            AlarmHelper.enqueue(appContext, alarm.copy(id = alarmId))
-            container.agendaRepository.upsert(source.copy(alarmId = alarmId, enabled = enabled))
-        }
-
-        val currentKeys = sourceEvents.mapTo(mutableSetOf()) { it.eventKey }
-        localEvents.values.filter { it.eventKey !in currentKeys }.forEach { stale ->
-            container.alarmRepository.getAlarmById(stale.alarmId)?.let { alarm ->
-                AlarmHelper.cancel(appContext, alarm)
-                container.alarmRepository.deleteAlarm(alarm)
-            }
-            container.agendaRepository.delete(stale.eventKey)
-        }
+        LocalAgendaMirror(
+            container.agendaRepository,
+            container.alarmRepository,
+            cancelAlarm = { AlarmHelper.cancel(appContext, it) },
+            enqueueAlarm = { AlarmHelper.enqueue(appContext, it) }
+        ).update(sourceEvents)
 
         return Result.Success(sourceEvents.size)
     }
 
     suspend fun setEnabled(event: AgendaEvent, enabled: Boolean) = withContext(Dispatchers.IO) {
-        val selected = container.agendaSourceRepository.current()
-        if (event.connectionId == null && selected != AgendaSource.LOCAL ||
-            event.connectionId != null && selected != AgendaSource.OAUTH
-        ) return@withContext
-        container.agendaRepository.updateEnabled(event.eventKey, enabled)
-        container.alarmRepository.getAlarmById(event.alarmId)?.let { alarm ->
-            alarm.enabled = enabled
-            container.alarmRepository.updateAlarm(alarm)
+        container.agendaSourceRepository.setEnabled(event.eventKey, enabled) { alarm ->
             AlarmHelper.enqueue(appContext, alarm)
         }
     }
@@ -259,21 +222,6 @@ class AgendaSyncer(
                 }
             }
         }.orEmpty()
-    }
-
-    private fun buildAlarm(event: AgendaEvent, id: Long, enabled: Boolean): Alarm {
-        val reminderAt = event.beginAt - TimeUnit.MINUTES.toMillis(event.reminderMinutes.toLong())
-        val dateTime = Instant.ofEpochMilli(reminderAt).atZone(ZoneId.systemDefault())
-        return Alarm(
-            id = id,
-            time = (dateTime.hour * 60L + dateTime.minute) * 60_000L,
-            label = event.title,
-            enabled = enabled,
-            agendaEventKey = event.eventKey,
-            startDate = LocalDate.from(dateTime).toEpochDay(),
-            repeatUnit = RepeatUnit.DAY,
-            endOccurrences = 1
-        )
     }
 
     sealed interface Result {

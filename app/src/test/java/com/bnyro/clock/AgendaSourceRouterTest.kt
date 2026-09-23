@@ -12,10 +12,15 @@ import com.bnyro.clock.domain.repository.AgendaRepository
 import com.bnyro.clock.domain.repository.AgendaSourceRepository
 import com.bnyro.clock.domain.repository.AlarmRepository
 import com.bnyro.clock.domain.repository.OAuthAccountsRepository
+import com.bnyro.clock.util.LocalAgendaMirror
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -173,6 +178,75 @@ class AgendaSourceRouterTest {
         assertTrue(sources.visibleEventsStream().first().isEmpty())
         sources.select(AgendaSource.OAUTH)
         assertEquals(listOf("google:one"), sources.visibleEventsStream().first().map { it.eventKey })
+    }
+
+    @Test
+    fun localMirrorMigratesDisabledLegacyEventWithoutRecreatingOrRemovingItsAlarm() = runBlocking {
+        sources.select(AgendaSource.LOCAL)
+        val legacyAlarmId = database.alarmsDao().insert(
+            Alarm(time = 0L, agendaEventKey = "42", enabled = false)
+        )
+        database.agendaEventsDao().upsert(
+            AgendaEvent("42", 42, 7, "Consulta", 1_000, 2_000, 15, legacyAlarmId, false)
+        )
+        val cancelled = mutableListOf<Long>()
+        val enqueued = mutableListOf<Alarm>()
+        val mirror = LocalAgendaMirror(
+            AgendaRepository(database.agendaEventsDao()),
+            AlarmRepository(database.alarmsDao()),
+            cancelAlarm = { cancelled += it.id },
+            enqueueAlarm = { enqueued += it.copy() }
+        )
+
+        mirror.update(listOf(
+            AgendaEvent("local:7:42", 42, 7, "Consulta", 1_000, 2_000, 15, 0)
+        ))
+
+        val stored = database.agendaEventsDao().getAll().single()
+        assertEquals("local:7:42", stored.eventKey)
+        assertFalse(stored.enabled)
+        assertEquals(legacyAlarmId, stored.alarmId)
+        assertEquals(listOf(legacyAlarmId), database.alarmsDao().getAll().map { it.id })
+        assertEquals("local:7:42", database.alarmsDao().getAll().single().agendaEventKey)
+        assertFalse(database.alarmsDao().getAll().single().enabled)
+        assertEquals(listOf(legacyAlarmId), cancelled)
+        assertEquals(listOf(false), enqueued.map { it.enabled })
+    }
+
+    @Test
+    fun queuedToggleCannotRescheduleAnAlarmAfterLocalDisconnect() = runBlocking {
+        sources.select(AgendaSource.LOCAL)
+        insertEvent("local:calendar:event", null)
+        val scheduled = mutableListOf<Long>()
+        assertTrue(sources.setEnabled("local:calendar:event", false) { scheduled += it.id })
+        assertFalse(database.agendaEventsDao().findByKey("local:calendar:event")!!.enabled)
+        assertFalse(database.alarmsDao().getAll().single().enabled)
+        assertEquals(1, scheduled.size)
+        scheduled.clear()
+        val syncEntered = CompletableDeferred<Unit>()
+        val finishSync = CompletableDeferred<Unit>()
+        val synchronizing = async(start = CoroutineStart.UNDISPATCHED) {
+            sources.sync(local = {
+                syncEntered.complete(Unit)
+                finishSync.await()
+            }, oauth = {})
+        }
+        syncEntered.await()
+        val disconnected = async(start = CoroutineStart.UNDISPATCHED) {
+            sources.disconnectLocal(cancelAlarm = {})
+        }
+        val toggled = async(start = CoroutineStart.UNDISPATCHED) {
+            sources.setEnabled("local:calendar:event", true) { scheduled += it.id }
+        }
+        finishSync.complete(Unit)
+        synchronizing.await()
+        disconnected.await()
+
+        assertFalse(toggled.await())
+        assertTrue(scheduled.isEmpty())
+        assertNull(database.agendaEventsDao().findByKey("local:calendar:event"))
+        assertTrue(database.alarmsDao().getAll().isEmpty())
+        assertNull(sources.current())
     }
 
     private suspend fun insertEvent(key: String, connectionId: String?) {

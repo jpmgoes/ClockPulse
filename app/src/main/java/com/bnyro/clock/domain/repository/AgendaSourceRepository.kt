@@ -61,6 +61,23 @@ class AgendaSourceRepository(
         }
     }
 
+    /** Re-reads the event under the source mutex before changing or scheduling its alarm. */
+    suspend fun setEnabled(eventKey: String, enabled: Boolean, enqueueAlarm: (Alarm) -> Unit): Boolean = mutex.withLock {
+        val event = events.findByKey(eventKey) ?: return@withLock false
+        when (current()) {
+            AgendaSource.LOCAL -> if (event.connectionId != null) return@withLock false
+            AgendaSource.OAUTH -> if (event.connectionId == null) return@withLock false
+            null -> return@withLock false
+        }
+        events.updateEnabled(eventKey, enabled)
+        alarms.getAlarmById(event.alarmId)?.let { alarm ->
+            alarm.enabled = enabled
+            alarms.updateAlarm(alarm)
+            enqueueAlarm(alarm)
+        }
+        true
+    }
+
     suspend fun disconnectLocal(cancelAlarm: (Alarm) -> Unit) = mutex.withLock {
         check(current() != AgendaSource.OAUTH) { "OAuth is the selected agenda source" }
         removeEvents(
