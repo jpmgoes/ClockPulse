@@ -8,6 +8,9 @@
     <string name="agenda_reminder_minutes">%1$d min antes</string>
     <string name="agenda_empty">Não há eventos próximos na Agenda do Google.</string>
     <string name="agenda_alarm_at">Alarme às %1$s</string>
+    <string name="agenda_disconnect">Revogar acesso ao calendário</string>
+    <string name="agenda_disconnect_title">Revogar acesso à Agenda do Google?</string>
+    <string name="agenda_disconnect_description">Isso remove todos os eventos sincronizados e seus alarmes. As configurações do Android serão abertas para você revogar o acesso ao calendário.</string>
     <string name="untitled_event">Evento sem título</string>
     <string name="clock">Relógio</string>
     <string name="stopwatch">Cronômetro</string>

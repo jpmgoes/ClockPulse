@@ -75,6 +75,17 @@ class AgendaSyncer(private val context: Context) {
         }
     }
 
+    /** Removes every locally mirrored event and cancels its alarm before calendar access is revoked. */
+    suspend fun clearSyncedEvents() = withContext(Dispatchers.IO) {
+        container.agendaRepository.getEvents().forEach { event ->
+            container.alarmRepository.getAlarmById(event.alarmId)?.let { alarm ->
+                AlarmHelper.cancel(appContext, alarm)
+                container.alarmRepository.deleteAlarm(alarm)
+            }
+            container.agendaRepository.delete(event.eventKey)
+        }
+    }
+
     private fun queryGoogleCalendarIds(): Set<Long> {
         val projection = arrayOf(CalendarContract.Calendars._ID)
         val selection = "${CalendarContract.Calendars.ACCOUNT_TYPE} = ?"

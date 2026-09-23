@@ -54,4 +54,11 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
         Preferences.edit { putInt(Preferences.agendaReminderMinutesKey, minutes) }
         sync()
     }
+
+    fun disconnect(onCleared: () -> Unit) {
+        viewModelScope.launch {
+            syncer.clearSyncedEvents()
+            onCleared()
+        }
+    }
 }

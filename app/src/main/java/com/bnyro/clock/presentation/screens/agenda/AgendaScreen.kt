@@ -1,7 +1,10 @@
 package com.bnyro.clock.presentation.screens.agenda
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -18,15 +21,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +62,7 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) agendaModel.sync() }
     val events by agendaModel.events.collectAsState()
+    var showDisconnectDialog by remember { mutableStateOf(false) }
 
     TopBarScaffold(
         title = stringResource(R.string.agenda),
@@ -73,6 +82,7 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
                     reminderMinutes = agendaModel.reminderMinutes,
                     onReminderSelected = agendaModel::updateReminderMinutes
                 )
+                DisconnectCalendarButton { showDisconnectDialog = true }
                 if (events.isEmpty()) {
                     EmptyAgendaContent()
                 } else {
@@ -84,6 +94,33 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
                 }
             }
         }
+    }
+
+    if (showDisconnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectDialog = false },
+            title = { Text(stringResource(R.string.agenda_disconnect_title)) },
+            text = { Text(stringResource(R.string.agenda_disconnect_description)) },
+            confirmButton = {
+                Button(onClick = {
+                    showDisconnectDialog = false
+                    agendaModel.disconnect {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        )
+                    }
+                }) {
+                    Text(stringResource(R.string.agenda_disconnect))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDisconnectDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 
@@ -120,6 +157,16 @@ private fun ReminderOptions(reminderMinutes: Int, onReminderSelected: (Int) -> U
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DisconnectCalendarButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Text(stringResource(R.string.agenda_disconnect))
     }
 }
 
