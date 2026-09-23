@@ -117,4 +117,5 @@ dependencies {
     implementation(libs.work.runtime.ktx)
 
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.google.auth)
 }
