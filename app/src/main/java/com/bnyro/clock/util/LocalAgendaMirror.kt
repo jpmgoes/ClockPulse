@@ -47,14 +47,21 @@ class LocalAgendaMirror(
         }
 
         val currentKeys = sourceEvents.mapTo(mutableSetOf()) { it.eventKey }
+        val alarmReferences = events.getEvents()
+            .groupingBy { it.alarmId }
+            .eachCount()
+            .toMutableMap()
         localEvents.values.filter {
             it.eventKey !in currentKeys && it.eventKey !in migratedLegacyKeys
         }.forEach { stale ->
-            alarms.getAlarmById(stale.alarmId)?.let { alarm ->
-                cancelAlarm(alarm)
-                alarms.deleteAlarm(alarm)
+            if (alarmReferences.getOrDefault(stale.alarmId, 0) <= 1) {
+                alarms.getAlarmById(stale.alarmId)?.let { alarm ->
+                    cancelAlarm(alarm)
+                    alarms.deleteAlarm(alarm)
+                }
             }
             events.delete(stale.eventKey)
+            alarmReferences[stale.alarmId] = alarmReferences.getOrDefault(stale.alarmId, 0) - 1
         }
     }
 

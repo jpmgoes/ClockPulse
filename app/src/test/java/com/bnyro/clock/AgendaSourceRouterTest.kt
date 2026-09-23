@@ -214,6 +214,37 @@ class AgendaSourceRouterTest {
     }
 
     @Test
+    fun localMirrorRecoversInterruptedLegacyMigrationWithoutDeletingSharedAlarm() = runBlocking {
+        sources.select(AgendaSource.LOCAL)
+        val alarmId = database.alarmsDao().insert(
+            Alarm(time = 0L, agendaEventKey = "local:7:42", enabled = false)
+        )
+        val legacy = AgendaEvent("42", 42, 7, "Consulta", 1_000, 2_000, 15, alarmId, false)
+        database.agendaEventsDao().upsert(legacy)
+        database.agendaEventsDao().upsert(legacy.copy(eventKey = "local:7:42"))
+        val cancelled = mutableListOf<Long>()
+        val mirror = LocalAgendaMirror(
+            AgendaRepository(database.agendaEventsDao()),
+            AlarmRepository(database.alarmsDao()),
+            cancelAlarm = { cancelled += it.id },
+            enqueueAlarm = {}
+        )
+        val snapshot = listOf(legacy.copy(eventKey = "local:7:42", alarmId = 0))
+
+        mirror.update(snapshot)
+        assertEquals(listOf(alarmId), database.alarmsDao().getAll().map { it.id })
+        assertEquals(listOf(alarmId), cancelled)
+        mirror.update(snapshot)
+
+        assertEquals(listOf("local:7:42"), database.agendaEventsDao().getAll().map { it.eventKey })
+        assertEquals(alarmId, database.agendaEventsDao().getAll().single().alarmId)
+        assertEquals(listOf(alarmId), database.alarmsDao().getAll().map { it.id })
+        assertEquals("local:7:42", database.alarmsDao().getAll().single().agendaEventKey)
+        assertFalse(database.alarmsDao().getAll().single().enabled)
+        assertEquals(listOf(alarmId, alarmId), cancelled)
+    }
+
+    @Test
     fun queuedToggleCannotRescheduleAnAlarmAfterLocalDisconnect() = runBlocking {
         sources.select(AgendaSource.LOCAL)
         insertEvent("local:calendar:event", null)
