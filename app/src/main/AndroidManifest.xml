@@ -152,7 +152,7 @@
                 android:enabled="true"
                 android:exported="false">
             <intent-filter>
-                <action android:name="com.bnyro.clock.TIMER_EXPIRED" />
+                <action android:name="app.clock.pulse.TIMER_EXPIRED" />
             </intent-filter>
         </receiver>
 

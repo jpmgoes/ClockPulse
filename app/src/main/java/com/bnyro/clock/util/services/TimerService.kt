@@ -783,6 +783,6 @@ class TimerService : Service() {
                 .setData("$UPDATE_STATE_SCHEME://$objectId/$action".toUri())
                 .putExtra(ACTION_EXTRA_KEY, action)
                 .putExtra(ID_EXTRA_KEY, objectId)
-        const val ACTION_TIMER_EXPIRED = "com.bnyro.clock.TIMER_EXPIRED"
+        const val ACTION_TIMER_EXPIRED = "app.clock.pulse.TIMER_EXPIRED"
     }
 }
