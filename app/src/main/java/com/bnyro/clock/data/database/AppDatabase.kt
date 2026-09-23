@@ -12,14 +12,16 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.bnyro.clock.data.database.dao.AlarmsDao
+import com.bnyro.clock.data.database.dao.AgendaEventsDao
 import com.bnyro.clock.data.database.dao.Converters
 import com.bnyro.clock.data.database.dao.TimeZonesDao
 import com.bnyro.clock.domain.model.Alarm
+import com.bnyro.clock.domain.model.AgendaEvent
 import com.bnyro.clock.domain.model.TimeZone
 
 @Database(
-    entities = [TimeZone::class, Alarm::class],
-    version = 13,
+    entities = [TimeZone::class, Alarm::class, AgendaEvent::class],
+    version = 15,
     autoMigrations = [
         AutoMigration(
             from = 2,
@@ -44,6 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun timeZonesDao(): TimeZonesDao
     abstract fun alarmsDao(): AlarmsDao
+    abstract fun agendaEventsDao(): AgendaEventsDao
 
     companion object {
         @Volatile
@@ -107,6 +110,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agenda_events` (" +
+                        "`eventKey` TEXT NOT NULL, `calendarEventId` INTEGER NOT NULL, " +
+                        "`calendarId` INTEGER NOT NULL, `title` TEXT NOT NULL, " +
+                        "`beginAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, " +
+                        "`alarmId` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`eventKey`))"
+                )
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE alarms ADD COLUMN agendaEventKey TEXT DEFAULT NULL")
+                db.execSQL(
+                    "UPDATE alarms SET agendaEventKey = (" +
+                        "SELECT eventKey FROM agenda_events WHERE agenda_events.alarmId = alarms.id) " +
+                        "WHERE id IN (SELECT alarmId FROM agenda_events)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val targetContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -133,7 +160,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_7_8,
                         MIGRATION_11_12,
-                        MIGRATION_12_13
+                        MIGRATION_12_13,
+                        MIGRATION_13_14,
+                        MIGRATION_14_15
                     )
                     .build()
                 INSTANCE = instance

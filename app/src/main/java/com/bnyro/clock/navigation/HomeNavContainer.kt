@@ -24,6 +24,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.bnyro.clock.presentation.screens.alarm.AlarmScreen
 import com.bnyro.clock.presentation.screens.alarm.model.AlarmModel
+import com.bnyro.clock.presentation.screens.agenda.AgendaScreen
+import com.bnyro.clock.presentation.screens.agenda.model.AgendaModel
 import com.bnyro.clock.presentation.screens.clock.ClockScreen
 import com.bnyro.clock.presentation.screens.clock.model.ClockModel
 import com.bnyro.clock.presentation.screens.settings.model.SettingsModel
@@ -60,6 +62,7 @@ fun HomeNavContainer(
     val pagerState = rememberPagerState(
         initialPage = initialPageIndex
     ) { filteredRoutes.size }
+    val agendaModel: AgendaModel = androidx.lifecycle.viewmodel.compose.viewModel()
 
     Scaffold(
         bottomBar = {
@@ -114,6 +117,13 @@ fun HomeNavContainer(
                     },
                                 alarmModel = alarmModel,
                                 settingsModel = settingsModel
+                            )
+                        }
+
+                        HomeRoutes.Agenda -> {
+                            AgendaScreen(
+                                onClickSettings = { onNavigate(NavRoutes.Settings.route) },
+                                agendaModel = agendaModel
                             )
                         }
 

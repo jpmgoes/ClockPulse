@@ -44,6 +44,8 @@ data class Alarm(
     @ColumnInfo(defaultValue = "NULL") var endDate: Long? = null,
     @ColumnInfo(defaultValue = "NULL") var endOccurrences: Int? = null,
     @ColumnInfo(defaultValue = "0") var advanced: Boolean = false,
+    /** Non-null only for an alarm managed by a Google Calendar event. */
+    @ColumnInfo(defaultValue = "NULL") var agendaEventKey: String? = null,
 ) {
     @Ignore
     val isWeekends: Boolean = days == listOf(0, 6)

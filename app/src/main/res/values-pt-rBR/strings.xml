@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="agenda">Agenda</string>
+    <string name="agenda_connect_title">Conecte sua Agenda do Google</string>
+    <string name="agenda_connect_description">Permita o acesso ao calendário para criar alarmes a partir dos eventos da Agenda do Google.</string>
+    <string name="agenda_connect">Conectar agenda</string>
+    <string name="agenda_window">Somente os próximos 7 dias ficam sincronizados.</string>
+    <string name="agenda_reminder_minutes">%1$d min antes</string>
+    <string name="agenda_empty">Não há eventos próximos na Agenda do Google.</string>
+    <string name="agenda_alarm_at">Alarme às %1$s</string>
+    <string name="untitled_event">Evento sem título</string>
     <string name="clock">Relógio</string>
     <string name="stopwatch">Cronômetro</string>
     <string name="vibrate">Vibrar</string>

@@ -53,7 +53,11 @@ class AppDatabaseMigrationTest {
         v12Helper.close()
 
         val db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
-            .addMigrations(AppDatabase.MIGRATION_12_13)
+            .addMigrations(
+                AppDatabase.MIGRATION_12_13,
+                AppDatabase.MIGRATION_13_14,
+                AppDatabase.MIGRATION_14_15
+            )
             .build()
         val alarms = runBlocking { db.alarmsDao().getAll() }
         db.close()

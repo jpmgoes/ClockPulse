@@ -13,6 +13,11 @@ import com.bnyro.clock.presentation.widgets.DigitalClockWidget
 import com.bnyro.clock.presentation.widgets.VerticalClockWidget
 import com.bnyro.clock.util.NotificationHelper
 import com.bnyro.clock.util.Preferences
+import com.bnyro.clock.util.AgendaSyncWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 class App : Application() {
     lateinit var container: AppContainer
@@ -40,11 +45,19 @@ class App : Application() {
         NotificationHelper.createStaticNotificationChannels(this)
 
         container = AppContainer(database)
+        runCatching {
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                AGENDA_SYNC_WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                PeriodicWorkRequestBuilder<AgendaSyncWorker>(6, TimeUnit.HOURS).build()
+            )
+        }
 
         updateGeneratedWidgetPreviews(this)
     }
 
     companion object {
+        private const val AGENDA_SYNC_WORK_NAME = "google_agenda_sync"
         fun updateGeneratedWidgetPreviews(context: Context) {
             if (Build.VERSION.SDK_INT >= 35) {
                 runCatching {

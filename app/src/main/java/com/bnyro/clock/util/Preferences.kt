@@ -32,6 +32,7 @@ object Preferences {
     const val startTabKey = "startTab"
     const val weekStartKey = "weekStart"
     const val volumeButtonActionKey = "volumeButtonAction"
+    const val agendaReminderMinutesKey = "agendaReminderMinutes"
 
 
     fun init(context: Context) {
