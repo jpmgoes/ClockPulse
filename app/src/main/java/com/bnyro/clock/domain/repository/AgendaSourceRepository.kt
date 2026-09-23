@@ -5,6 +5,7 @@ import com.bnyro.clock.domain.model.AgendaEvent
 import com.bnyro.clock.domain.model.AgendaSource
 import com.bnyro.clock.domain.model.Alarm
 import com.bnyro.clock.domain.model.OAuthAccount
+import com.bnyro.clock.util.accountEventPrefix
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -101,6 +102,24 @@ class AgendaSourceRepository(
         )
         accounts.deleteAll()
         sourceDao.clear()
+    }
+
+    /** Removing a profile cannot race an import or leave its scheduled alarms behind. */
+    suspend fun disconnectOAuth(
+        accountId: String,
+        cancelAlarm: (Alarm) -> Unit,
+        revokeAccount: suspend (OAuthAccount) -> Unit
+    ) = mutex.withLock {
+        check(current() != AgendaSource.LOCAL) { "Local is the selected agenda source" }
+        accounts.findById(accountId)?.let { revokeAccount(it) }
+        val prefix = accountEventPrefix(accountId)
+        removeEvents(
+            belongsToSource = { it.connectionId == accountId },
+            belongsToAlarmSource = { it.agendaEventKey?.startsWith(prefix) == true },
+            cancelAlarm = cancelAlarm
+        )
+        accounts.delete(accountId)
+        if (accounts.getAccounts().isEmpty()) sourceDao.clear()
     }
 
     /** Cancel every scheduled alarm before deleting any matching event or account row. */

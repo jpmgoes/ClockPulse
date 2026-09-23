@@ -13,6 +13,7 @@ import com.bnyro.clock.App
 import com.bnyro.clock.domain.model.AgendaEvent
 import com.bnyro.clock.domain.model.AgendaSource
 import com.bnyro.clock.domain.model.OAuthAccount
+import com.bnyro.clock.util.google.AuthorizedGoogleCalendar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit
 /** Routes Agenda synchronization to exactly the selected source. */
 class AgendaSyncer(
     private val context: Context,
-    private val oauthSync: suspend () -> Result = { Result.OAuthUnavailable }
+    private val oauthSync: (suspend () -> Result)? = null
 ) {
     private val appContext = context.applicationContext
     private val container get() = (appContext as App).container
@@ -29,8 +30,23 @@ class AgendaSyncer(
     suspend fun sync(requestProviderSync: Boolean = false): Result = withContext(Dispatchers.IO) {
         container.agendaSourceRepository.sync(
             local = { syncLocal(requestProviderSync) },
-            oauth = oauthSync
+            oauth = { oauthSync?.invoke() ?: syncOAuth() }
         ) ?: Result.SourceSelectionRequired
+    }
+
+    private suspend fun syncOAuth(): Result {
+        val app = appContext as App
+        val calendar = AuthorizedGoogleCalendar(app.googleCalendarAuthorizer, app.googleCalendarApi) {
+            container.oauthAccountsRepository.updateState(it, "RECONNECT_REQUIRED")
+        }
+        val result = OAuthAgendaSync(
+            container.oauthAccountsRepository, container.agendaRepository, container.alarmRepository,
+            fetchEvents = calendar::events,
+            cancelAlarm = { AlarmHelper.cancel(appContext, it) },
+            enqueueAlarm = { AlarmHelper.enqueue(appContext, it) },
+            untitledEvent = appContext.getString(com.bnyro.clock.R.string.untitled_event)
+        ).syncAccounts()
+        return Result.Success(result.eventCount, result.failedAccountIds)
     }
 
     suspend fun selectSource(source: AgendaSource) = withContext(Dispatchers.IO) {
@@ -72,7 +88,7 @@ class AgendaSyncer(
         container.agendaSourceRepository.disconnectLocal { AlarmHelper.cancel(appContext, it) }
     }
 
-    /** Task 3 supplies the Google authorization revoker for every connected profile. */
+    /** Revocation and cleanup share the same lock as local and OAuth imports. */
     suspend fun disconnectAllOAuth(revokeAccount: suspend (OAuthAccount) -> Unit) = withContext(Dispatchers.IO) {
         container.agendaSourceRepository.disconnectAllOAuth(
             cancelAlarm = { AlarmHelper.cancel(appContext, it) },
@@ -225,7 +241,7 @@ class AgendaSyncer(
     }
 
     sealed interface Result {
-        data class Success(val eventCount: Int) : Result
+        data class Success(val eventCount: Int, val failedAccountIds: Set<String> = emptySet()) : Result
         data object PermissionRequired : Result
         data object SourceSelectionRequired : Result
         data object OAuthUnavailable : Result

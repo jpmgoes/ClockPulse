@@ -14,6 +14,8 @@ import com.bnyro.clock.presentation.widgets.VerticalClockWidget
 import com.bnyro.clock.util.NotificationHelper
 import com.bnyro.clock.util.Preferences
 import com.bnyro.clock.util.AgendaSyncWorker
+import com.bnyro.clock.util.google.GoogleCalendarApi
+import com.bnyro.clock.util.google.GoogleCalendarAuthorizer
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -21,6 +23,8 @@ import java.util.concurrent.TimeUnit
 
 class App : Application() {
     lateinit var container: AppContainer
+    val googleCalendarAuthorizer by lazy { GoogleCalendarAuthorizer(this) }
+    val googleCalendarApi by lazy { GoogleCalendarApi() }
 
     //should work for android 6 OR all higher
     private val safeContext: Context by lazy {

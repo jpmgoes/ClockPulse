@@ -29,13 +29,17 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
         private set
     var lastSyncMessage by mutableStateOf<String?>(null)
         private set
+    var failedOAuthAccountIds by mutableStateOf<Set<String>>(emptySet())
+        private set
     fun sync(requestProviderSync: Boolean = false) {
         if (isSyncing) return
         viewModelScope.launch {
             isSyncing = true
             try {
-                lastSyncMessage = when (val result = syncer.sync(requestProviderSync)) {
-                    is AgendaSyncer.Result.Success -> "${result.eventCount}"
+                val result = syncer.sync(requestProviderSync)
+                failedOAuthAccountIds = (result as? AgendaSyncer.Result.Success)?.failedAccountIds.orEmpty()
+                lastSyncMessage = when (result) {
+                    is AgendaSyncer.Result.Success -> if (result.failedAccountIds.isEmpty()) "${result.eventCount}" else null
                     AgendaSyncer.Result.PermissionRequired,
                     AgendaSyncer.Result.SourceSelectionRequired,
                     AgendaSyncer.Result.OAuthUnavailable -> null
