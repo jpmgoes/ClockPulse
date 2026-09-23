@@ -6,6 +6,9 @@ import androidx.work.WorkerParameters
 
 class AgendaSyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): androidx.work.ListenableWorker.Result = when (AgendaSyncer(applicationContext).sync()) {
-        is AgendaSyncer.Result.Success, AgendaSyncer.Result.PermissionRequired -> Result.success()
+        is AgendaSyncer.Result.Success,
+        AgendaSyncer.Result.PermissionRequired,
+        AgendaSyncer.Result.SourceSelectionRequired,
+        AgendaSyncer.Result.OAuthUnavailable -> Result.success()
     }
 }

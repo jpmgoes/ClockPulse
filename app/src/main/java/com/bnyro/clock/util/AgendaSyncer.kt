@@ -11,7 +11,9 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.bnyro.clock.App
 import com.bnyro.clock.domain.model.AgendaEvent
+import com.bnyro.clock.domain.model.AgendaSource
 import com.bnyro.clock.domain.model.Alarm
+import com.bnyro.clock.domain.model.OAuthAccount
 import com.bnyro.clock.domain.model.RepeatUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,16 +22,31 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
-/** Mirrors the next seven days from Google calendars exposed by Android's Calendar Provider. */
-class AgendaSyncer(private val context: Context) {
+/** Routes Agenda synchronization to exactly the selected source. */
+class AgendaSyncer(
+    private val context: Context,
+    private val oauthSync: suspend () -> Result = { Result.OAuthUnavailable }
+) {
     private val appContext = context.applicationContext
     private val container get() = (appContext as App).container
 
     suspend fun sync(requestProviderSync: Boolean = false): Result = withContext(Dispatchers.IO) {
+        container.agendaSourceRepository.sync(
+            local = { syncLocal(requestProviderSync) },
+            oauth = oauthSync
+        ) ?: Result.SourceSelectionRequired
+    }
+
+    suspend fun selectSource(source: AgendaSource) = withContext(Dispatchers.IO) {
+        container.agendaSourceRepository.select(source) { AlarmHelper.cancel(appContext, it) }
+    }
+
+    /** Mirrors Android Calendar Provider events only while LOCAL is selected. */
+    private suspend fun syncLocal(requestProviderSync: Boolean): Result {
         if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.READ_CALENDAR) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            return@withContext Result.PermissionRequired
+            return Result.PermissionRequired
         }
 
         if (requestProviderSync) requestGoogleCalendarSync()
@@ -38,7 +55,9 @@ class AgendaSyncer(private val context: Context) {
         val windowEnd = now + TimeUnit.DAYS.toMillis(7)
         val googleCalendarIds = queryGoogleCalendarIds()
         val sourceEvents = queryEvents(windowStart, windowEnd, googleCalendarIds)
-        val localEvents = container.agendaRepository.getEvents().associateBy { it.eventKey }
+        val localEvents = container.agendaRepository.getEvents()
+            .filter { it.connectionId == null }
+            .associateBy { it.eventKey }
 
         sourceEvents.forEach { source ->
             val existing = localEvents[source.eventKey]
@@ -69,10 +88,14 @@ class AgendaSyncer(private val context: Context) {
             container.agendaRepository.delete(stale.eventKey)
         }
 
-        Result.Success(sourceEvents.size)
+        return Result.Success(sourceEvents.size)
     }
 
     suspend fun setEnabled(event: AgendaEvent, enabled: Boolean) = withContext(Dispatchers.IO) {
+        val selected = container.agendaSourceRepository.current()
+        if (event.connectionId == null && selected != AgendaSource.LOCAL ||
+            event.connectionId != null && selected != AgendaSource.OAUTH
+        ) return@withContext
         container.agendaRepository.updateEnabled(event.eventKey, enabled)
         container.alarmRepository.getAlarmById(event.alarmId)?.let { alarm ->
             alarm.enabled = enabled
@@ -81,15 +104,17 @@ class AgendaSyncer(private val context: Context) {
         }
     }
 
-    /** Removes every locally mirrored event and cancels its alarm before calendar access is revoked. */
+    /** Removes only locally mirrored events and cancels their alarms. */
     suspend fun clearSyncedEvents() = withContext(Dispatchers.IO) {
-        container.agendaRepository.getEvents().forEach { event ->
-            container.alarmRepository.getAlarmById(event.alarmId)?.let { alarm ->
-                AlarmHelper.cancel(appContext, alarm)
-                container.alarmRepository.deleteAlarm(alarm)
-            }
-            container.agendaRepository.delete(event.eventKey)
-        }
+        container.agendaSourceRepository.disconnectLocal { AlarmHelper.cancel(appContext, it) }
+    }
+
+    /** Task 3 supplies the Google authorization revoker for every connected profile. */
+    suspend fun disconnectAllOAuth(revokeAccount: suspend (OAuthAccount) -> Unit) = withContext(Dispatchers.IO) {
+        container.agendaSourceRepository.disconnectAllOAuth(
+            cancelAlarm = { AlarmHelper.cancel(appContext, it) },
+            revokeAccount = revokeAccount
+        )
     }
 
     private fun queryGoogleCalendarIds(): Set<Long> {
@@ -183,7 +208,7 @@ class AgendaSyncer(private val context: Context) {
                     val instanceKey = originalInstanceTime.takeIf { it != 0L }?.let { ":$it" }.orEmpty()
                     add(
                         AgendaEvent(
-                            eventKey = "$eventId$instanceKey",
+                            eventKey = "local:$calendarId:$eventId$instanceKey",
                             calendarEventId = eventId,
                             calendarId = calendarId,
                             title = title,
@@ -254,6 +279,8 @@ class AgendaSyncer(private val context: Context) {
     sealed interface Result {
         data class Success(val eventCount: Int) : Result
         data object PermissionRequired : Result
+        data object SourceSelectionRequired : Result
+        data object OAuthUnavailable : Result
     }
 
     private companion object {

@@ -15,9 +15,9 @@ import kotlinx.coroutines.launch
 
 class AgendaModel(application: Application) : AndroidViewModel(application) {
     private val syncer = AgendaSyncer(application.applicationContext)
-    private val repository = (application as App).container.agendaRepository
+    private val sourceRepository = (application as App).container.agendaSourceRepository
 
-    val events = repository.getEventsStream().stateIn(
+    val events = sourceRepository.visibleEventsStream().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList()
@@ -36,7 +36,9 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
             try {
                 lastSyncMessage = when (val result = syncer.sync(requestProviderSync)) {
                     is AgendaSyncer.Result.Success -> "${result.eventCount}"
-                    AgendaSyncer.Result.PermissionRequired -> null
+                    AgendaSyncer.Result.PermissionRequired,
+                    AgendaSyncer.Result.SourceSelectionRequired,
+                    AgendaSyncer.Result.OAuthUnavailable -> null
                 }
             } finally {
                 hasCompletedInitialSync = true
