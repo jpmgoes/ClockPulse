@@ -191,7 +191,6 @@ fun AgendaSourceContent(
                     Button(onClick = { showAccounts = true }, enabled = !busy, modifier = Modifier.testTag("manage-google-accounts")) {
                         Text(stringResource(R.string.agenda_manage_google_accounts, state.accounts.size))
                     }
-                    Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
