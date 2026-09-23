@@ -59,10 +59,11 @@ class GoogleCalendarAuthorizer(
 
     suspend fun authorize(email: String): GoogleAuthorization {
         require(email.isNotBlank())
-        return client.authorize(AuthorizationRequest.builder()
-            .setAccount(Account(email, "com.google"))
+        val request = AuthorizationRequest.builder()
             .setRequestedScopes(scopes)
-            .build()).awaitResult().asAuthorization()
+            .setAccount(Account(email, "com.google"))
+            .build()
+        return client.authorize(request).awaitResult().asAuthorization()
     }
 
     fun finishAuthorization(data: Intent): GoogleAuthorization = try {
