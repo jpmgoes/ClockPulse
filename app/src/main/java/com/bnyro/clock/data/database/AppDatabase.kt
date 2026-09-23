@@ -13,15 +13,19 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.bnyro.clock.data.database.dao.AlarmsDao
 import com.bnyro.clock.data.database.dao.AgendaEventsDao
+import com.bnyro.clock.data.database.dao.AgendaSourceDao
 import com.bnyro.clock.data.database.dao.Converters
+import com.bnyro.clock.data.database.dao.OAuthAccountsDao
 import com.bnyro.clock.data.database.dao.TimeZonesDao
 import com.bnyro.clock.domain.model.Alarm
 import com.bnyro.clock.domain.model.AgendaEvent
+import com.bnyro.clock.domain.model.AgendaSourceSelection
+import com.bnyro.clock.domain.model.OAuthAccount
 import com.bnyro.clock.domain.model.TimeZone
 
 @Database(
-    entities = [TimeZone::class, Alarm::class, AgendaEvent::class],
-    version = 16,
+    entities = [TimeZone::class, Alarm::class, AgendaEvent::class, AgendaSourceSelection::class, OAuthAccount::class],
+    version = 17,
     autoMigrations = [
         AutoMigration(
             from = 2,
@@ -47,6 +51,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun timeZonesDao(): TimeZonesDao
     abstract fun alarmsDao(): AlarmsDao
     abstract fun agendaEventsDao(): AgendaEventsDao
+    abstract fun agendaSourceDao(): AgendaSourceDao
+    abstract fun oauthAccountsDao(): OAuthAccountsDao
 
     companion object {
         @Volatile
@@ -142,6 +148,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE agenda_events ADD COLUMN connectionId TEXT DEFAULT NULL")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agenda_source` (" +
+                        "`id` INTEGER NOT NULL, `source` TEXT NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `oauth_accounts` (" +
+                        "`id` TEXT NOT NULL, `provider` TEXT NOT NULL, " +
+                        "`profileId` TEXT NOT NULL, `displayName` TEXT NOT NULL, " +
+                        "`email` TEXT NOT NULL, `state` TEXT NOT NULL, " +
+                        "`lastSyncedAt` INTEGER, `providerDisplayName` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val targetContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -171,7 +195,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_12_13,
                         MIGRATION_13_14,
                         MIGRATION_14_15,
-                        MIGRATION_15_16
+                        MIGRATION_15_16,
+                        MIGRATION_16_17
                     )
                     .build()
                 INSTANCE = instance

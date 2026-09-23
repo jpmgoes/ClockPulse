@@ -3,6 +3,7 @@ package com.bnyro.clock
 import com.bnyro.clock.data.database.AppDatabase
 import com.bnyro.clock.domain.repository.AlarmRepository
 import com.bnyro.clock.domain.repository.AgendaRepository
+import com.bnyro.clock.domain.repository.OAuthAccountsRepository
 import com.bnyro.clock.domain.repository.TimezoneRepository
 
 class AppContainer(database: AppDatabase) {
@@ -14,5 +15,8 @@ class AppContainer(database: AppDatabase) {
     }
     val agendaRepository: AgendaRepository by lazy {
         AgendaRepository(database.agendaEventsDao())
+    }
+    val oauthAccountsRepository: OAuthAccountsRepository by lazy {
+        OAuthAccountsRepository(database.oauthAccountsDao())
     }
 }

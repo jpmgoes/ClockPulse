@@ -14,5 +14,6 @@ data class AgendaEvent(
     val endAt: Long,
     val reminderMinutes: Int = 0,
     val alarmId: Long,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val connectionId: String? = null
 )
