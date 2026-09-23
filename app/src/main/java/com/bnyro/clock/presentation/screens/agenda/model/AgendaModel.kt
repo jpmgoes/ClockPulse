@@ -27,6 +27,8 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
 
     var isSyncing by mutableStateOf(false)
         private set
+    var hasCompletedInitialSync by mutableStateOf(false)
+        private set
     var lastSyncMessage by mutableStateOf<String?>(null)
         private set
     var reminderMinutes by mutableIntStateOf(
@@ -35,13 +37,18 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
         private set
 
     fun sync() {
+        if (isSyncing) return
         viewModelScope.launch {
             isSyncing = true
-            lastSyncMessage = when (val result = syncer.sync()) {
-                is AgendaSyncer.Result.Success -> "${result.eventCount}"
-                AgendaSyncer.Result.PermissionRequired -> null
+            try {
+                lastSyncMessage = when (val result = syncer.sync()) {
+                    is AgendaSyncer.Result.Success -> "${result.eventCount}"
+                    AgendaSyncer.Result.PermissionRequired -> null
+                }
+            } finally {
+                hasCompletedInitialSync = true
+                isSyncing = false
             }
-            isSyncing = false
         }
     }
 

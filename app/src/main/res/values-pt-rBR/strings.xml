@@ -11,6 +11,9 @@
     <string name="agenda_disconnect">Revogar acesso ao calendário</string>
     <string name="agenda_disconnect_title">Revogar acesso à Agenda do Google?</string>
     <string name="agenda_disconnect_description">Isso remove todos os eventos sincronizados e seus alarmes. As configurações do Android serão abertas para você revogar o acesso ao calendário.</string>
+    <string name="agenda_initial_sync_title">Preparando sua agenda</string>
+    <string name="agenda_syncing_title">Sincronizando agenda</string>
+    <string name="agenda_syncing_description">Buscando eventos e atualizando seus alarmes.</string>
     <string name="untitled_event">Evento sem título</string>
     <string name="clock">Relógio</string>
     <string name="stopwatch">Cronômetro</string>

@@ -8,12 +8,14 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,10 +25,14 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,15 +58,22 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
     val context = LocalContext.current
-    val hasCalendarPermission = ContextCompat.checkSelfPermission(
-        context, Manifest.permission.READ_CALENDAR
-    ) == PackageManager.PERMISSION_GRANTED
+    var hasCalendarPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> if (granted) agendaModel.sync() }
+    ) { granted ->
+        hasCalendarPermission = granted
+        if (granted) agendaModel.sync()
+    }
     val events by agendaModel.events.collectAsState()
     var showDisconnectDialog by remember { mutableStateOf(false) }
 
@@ -68,30 +81,41 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
         title = stringResource(R.string.agenda),
         onClickSettings = onClickSettings,
         actions = {
-            ClickableIcon(imageVector = Icons.Default.Refresh) {
-                if (hasCalendarPermission) agendaModel.sync()
-                else permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            if (agendaModel.isSyncing) {
+                LoadingIndicator(modifier = Modifier.size(32.dp))
+            } else {
+                ClickableIcon(imageVector = Icons.Default.Refresh) {
+                    if (hasCalendarPermission) agendaModel.sync()
+                    else permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                }
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            if (!hasCalendarPermission) {
-                AgendaPermissionContent { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }
-            } else {
-                ReminderOptions(
-                    reminderMinutes = agendaModel.reminderMinutes,
-                    onReminderSelected = agendaModel::updateReminderMinutes
-                )
-                DisconnectCalendarButton { showDisconnectDialog = true }
-                if (events.isEmpty()) {
-                    EmptyAgendaContent()
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize()) {
+                if (!hasCalendarPermission) {
+                    AgendaPermissionContent { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }
                 } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(events, key = { it.eventKey }) { event ->
-                            AgendaEventItem(event, agendaModel::setEnabled)
+                    ReminderOptions(
+                        reminderMinutes = agendaModel.reminderMinutes,
+                        onReminderSelected = agendaModel::updateReminderMinutes
+                    )
+                    DisconnectCalendarButton { showDisconnectDialog = true }
+                    if (events.isEmpty()) {
+                        EmptyAgendaContent()
+                    } else {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(events, key = { it.eventKey }) { event ->
+                                AgendaEventItem(event, agendaModel::setEnabled)
+                            }
                         }
                     }
                 }
+            }
+            if (agendaModel.isSyncing) {
+                AgendaSyncLoadingOverlay(
+                    isInitialSync = !agendaModel.hasCompletedInitialSync
+                )
             }
         }
     }
@@ -121,6 +145,39 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AgendaSyncLoadingOverlay(isInitialSync: Boolean) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Card {
+                Column(
+                    modifier = Modifier.padding(horizontal = 40.dp, vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    LoadingIndicator(modifier = Modifier.size(96.dp))
+                    Text(
+                        text = stringResource(
+                            if (isInitialSync) R.string.agenda_initial_sync_title
+                            else R.string.agenda_syncing_title
+                        ),
+                        modifier = Modifier.padding(top = 24.dp),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = stringResource(R.string.agenda_syncing_description),
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
     }
 }
 

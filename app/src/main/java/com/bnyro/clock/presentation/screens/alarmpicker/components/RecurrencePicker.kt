@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -243,7 +244,7 @@ fun RecurrencePicker(
                         singleLine = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showDurations) }
                     )
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = showDurations,
                         onDismissRequest = { showDurations = false }
                     ) {
@@ -329,7 +330,7 @@ fun RecurrencePicker(
                         singleLine = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showUnits) }
                     )
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = showUnits,
                         onDismissRequest = { showUnits = false }
                     ) {
@@ -385,7 +386,7 @@ fun RecurrencePicker(
                             ExposedDropdownMenuDefaults.TrailingIcon(showRepeatAnchors)
                         }
                     )
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = showRepeatAnchors,
                         onDismissRequest = { showRepeatAnchors = false }
                     ) {
