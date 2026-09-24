@@ -110,7 +110,7 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
             state = state, hasPermission = hasPermission,
             busy = agendaModel.isChangingSource || agendaModel.isConnecting,
             errorMessage = agendaModel.errorMessage,
-            failedAccountIds = agendaModel.failedOAuthAccountIds,
+            onDismissError = agendaModel::clearError,
             onSelect = { source -> agendaModel.selectSource(source) {
                 if (source == AgendaSource.LOCAL && !hasPermission) permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
             } },
@@ -154,7 +154,7 @@ fun AgendaSourceContent(
     hasPermission: Boolean,
     busy: Boolean,
     errorMessage: Int?,
-    failedAccountIds: Set<String> = emptySet(),
+    onDismissError: () -> Unit,
     onSelect: (AgendaSource) -> Unit,
     onChooseOAuth: (OAuthProvider) -> Unit,
     onGrantPermission: () -> Unit,
@@ -176,10 +176,20 @@ fun AgendaSourceContent(
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
+    errorMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = onDismissError,
+            title = { Text(stringResource(R.string.agenda_error_dialog_title)) },
+            text = { Text(stringResource(message)) },
+            confirmButton = {
+                TextButton(onClick = onDismissError, modifier = Modifier.testTag("dismiss-agenda-error")) {
+                    Text(stringResource(R.string.agenda_error_dialog_confirm))
+                }
+            },
+            modifier = Modifier.testTag("agenda-error-popup")
+        )
+    }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (errorMessage != null) item {
-            Text(stringResource(errorMessage), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("agenda-error"))
-        }
         when (state.source) {
             null -> {
                 item { Text(stringResource(R.string.agenda_choose_source), style = MaterialTheme.typography.headlineSmall) }
@@ -252,7 +262,7 @@ fun AgendaSourceContent(
                 Text(stringResource(R.string.agenda_oauth_accounts_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.agenda_oauth_accounts_description), style = MaterialTheme.typography.bodyMedium)
                 state.accounts.forEach { account ->
-                    OAuthAccountCard(account, account.id in failedAccountIds, busy, onReconnect, { removeAccount = account })
+                    OAuthAccountCard(account, busy, onReconnect, { removeAccount = account })
                 }
                 Button(onClick = onAddGoogleAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) {
                     Text(stringResource(R.string.agenda_add_google_account))
@@ -307,7 +317,6 @@ fun AgendaSourceContent(
 @Composable
 private fun OAuthAccountCard(
     account: OAuthAccount,
-    syncFailed: Boolean,
     busy: Boolean,
     onReconnect: (OAuthAccount) -> Unit,
     onRemove: () -> Unit
@@ -317,8 +326,6 @@ private fun OAuthAccountCard(
             Text(account.providerDisplayName, style = MaterialTheme.typography.labelLarge)
             Text(account.displayName, style = MaterialTheme.typography.titleMedium)
             Text(account.email, style = MaterialTheme.typography.bodyMedium)
-            if (account.state == "RECONNECT_REQUIRED") Text(stringResource(R.string.agenda_reconnect_required), color = MaterialTheme.colorScheme.error)
-            else if (syncFailed) Text(stringResource(R.string.agenda_account_sync_failed), color = MaterialTheme.colorScheme.error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { onReconnect(account) }, enabled = !busy) { Text(stringResource(R.string.agenda_reconnect)) }
                 TextButton(onClick = onRemove, enabled = !busy) { Text(stringResource(R.string.agenda_remove_account)) }

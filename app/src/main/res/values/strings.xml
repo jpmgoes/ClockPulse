@@ -382,7 +382,9 @@
     <string name="agenda_authorization_failed">Could not connect the calendar account. Try again and allow calendar access.</string>
     <string name="agenda_action_failed">Could not complete this action. Please try again.</string>
     <string name="agenda_sync_failed">Could not update the calendar. Check your connection and try again.</string>
-    <string name="agenda_partial_sync">Some accounts could not be updated. Check the account cards below.</string>
+    <string name="agenda_partial_sync">Some accounts could not be updated. Their saved events remain available.</string>
+    <string name="agenda_error_dialog_title">Calendar error</string>
+    <string name="agenda_error_dialog_confirm">OK</string>
     <string name="agenda_disconnect_failed">Could not revoke access completely. The source remains selected. Check your connection and try again.</string>
     <string name="agenda_event_provider_local">Local calendar · This device</string>
     <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>

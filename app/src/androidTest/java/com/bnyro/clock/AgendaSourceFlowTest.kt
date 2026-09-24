@@ -68,9 +68,10 @@ class AgendaSourceFlowTest {
     private fun render(state: androidx.compose.runtime.MutableState<AgendaUiState>, disconnect: () -> Unit = {}) {
         compose.setContent {
             MaterialTheme {
-                AgendaSourceContent(state.value, true, false, null,
+                AgendaSourceContent(state.value, true, false, null, onDismissError = {},
                     onSelect = { state.value = AgendaUiState(true, it) },
-                    onGrantPermission = {}, onAddAccount = {}, onReconnect = {}, onRemove = {},
+                    onChooseOAuth = {}, onGrantPermission = {}, onAddGoogleAccount = {}, onAddMicrosoftAccount = {},
+                    onReconnect = {}, onRemove = {},
                     onDisconnectAll = disconnect, onDisconnectLocal = {}, onEnabledChanged = { _, _ -> })
             }
         }
