@@ -35,6 +35,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            manifestPlaceholders["msalSignatureHash"] = "XF5RjQkcsZgOEp6JdVzeGso4vDQ%3D"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -44,6 +45,7 @@ android {
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["msalSignatureHash"] = "IoXFO8wW%2BJ92lmpdd42uQgL7JzE%3D"
         }
     }
     splits {

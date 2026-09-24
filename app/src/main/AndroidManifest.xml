@@ -76,8 +76,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="msauth"
-                    android:host="app.clock.pulse.debug"
-                    android:path="/IoXFO8wW%2BJ92lmpdd42uQgL7JzE%3D" />
+                    android:host="${applicationId}"
+                    android:path="/${msalSignatureHash}" />
             </intent-filter>
         </activity>
 
