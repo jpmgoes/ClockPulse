@@ -64,6 +64,8 @@ class AgendaSourceFlowTest {
         compose.onNodeWithTag("local-permission").assertDoesNotExist()
         compose.onNodeWithTag("disconnect-local").assertDoesNotExist()
         compose.onNodeWithTag("choose-local").assertDoesNotExist()
+        compose.onNodeWithTag("choose-agenda-source").assertDoesNotExist()
+        compose.onNodeWithTag("oauth-account-provider-actions").assertIsDisplayed()
         compose.onNodeWithText("Local event").assertDoesNotExist()
     }
 

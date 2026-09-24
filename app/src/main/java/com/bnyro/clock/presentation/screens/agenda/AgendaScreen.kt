@@ -13,6 +13,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -226,15 +227,6 @@ fun AgendaSourceContent(
                         Text(stringResource(R.string.agenda_manage_oauth_accounts, state.accounts.size))
                     }
                 }
-                item {
-                    OutlinedButton(
-                        onClick = {
-                            if (state.accounts.isEmpty()) onDisconnectAll() else disconnectAll = true
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.testTag("choose-agenda-source")
-                    ) { Text(stringResource(R.string.agenda_change_source)) }
-                }
             }
         }
         if (!showSourceSelector) {
@@ -265,21 +257,30 @@ fun AgendaSourceContent(
             ) {
                 Text(stringResource(R.string.agenda_oauth_accounts_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.agenda_oauth_accounts_description), style = MaterialTheme.typography.bodyMedium)
+                OAuthProviderPill(
+                    onGoogle = onAddGoogleAccount,
+                    onMicrosoft = onAddMicrosoftAccount,
+                    enabled = !busy,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("oauth-account-provider-actions")
+                )
                 state.accounts.forEach { account ->
                     OAuthAccountCard(account, busy, onReconnect, { removeAccount = account })
                 }
-                Button(onClick = onAddGoogleAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) {
-                    Text(stringResource(R.string.agenda_add_google_account))
-                }
-                OutlinedButton(onClick = onAddMicrosoftAccount, enabled = !busy, modifier = Modifier.testTag("add-microsoft-account")) {
-                    Text(stringResource(R.string.agenda_add_microsoft_account))
-                }
+                HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
                 OutlinedButton(
                     onClick = { disconnectAll = true },
                     enabled = !busy,
-                    modifier = Modifier.testTag("disconnect-all")
+                    modifier = Modifier.fillMaxWidth().testTag("disconnect-all"),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text(stringResource(R.string.agenda_disconnect_all)) }
-                Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Text(
+                        stringResource(R.string.agenda_oauth_source_lock),
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -293,38 +294,13 @@ fun AgendaSourceContent(
             ) {
                 Text(stringResource(R.string.agenda_choose_oauth_provider), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.agenda_choose_oauth_provider_description), style = MaterialTheme.typography.bodyMedium)
-                Surface(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("oauth-provider-actions"),
-                    shape = RoundedCornerShape(32.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shadowElevation = 6.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
-                            modifier = Modifier.testTag("choose-google-oauth")
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_google),
-                                contentDescription = stringResource(R.string.agenda_google_provider)
-                            )
-                        }
-                        IconButton(
-                            onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
-                            modifier = Modifier.testTag("choose-microsoft-oauth")
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_microsoft),
-                                contentDescription = stringResource(R.string.agenda_microsoft_provider)
-                            )
-                        }
-                    }
-                }
+                OAuthProviderPill(
+                    onGoogle = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
+                    onMicrosoft = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
+                    googleTag = "choose-google-oauth",
+                    microsoftTag = "choose-microsoft-oauth",
+                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("oauth-provider-actions")
+                )
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -339,6 +315,43 @@ fun AgendaSourceContent(
             text = { Text(stringResource(R.string.agenda_remove_description, account.email)) },
             confirmButton = { Button(onClick = { removeAccount = null; onRemove(account) }) { Text(stringResource(R.string.agenda_remove_account)) } },
             dismissButton = { TextButton(onClick = { removeAccount = null }) { Text(stringResource(R.string.cancel)) } })
+    }
+}
+
+@Composable
+private fun OAuthProviderPill(
+    onGoogle: () -> Unit,
+    onMicrosoft: () -> Unit,
+    enabled: Boolean = true,
+    googleTag: String = "add-google-account",
+    microsoftTag: String = "add-microsoft-account",
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onGoogle, enabled = enabled, modifier = Modifier.testTag(googleTag)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_google),
+                    contentDescription = stringResource(R.string.agenda_google_provider)
+                )
+            }
+            IconButton(onClick = onMicrosoft, enabled = enabled, modifier = Modifier.testTag(microsoftTag)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_microsoft),
+                    contentDescription = stringResource(R.string.agenda_microsoft_provider)
+                )
+            }
+        }
     }
 }
 
