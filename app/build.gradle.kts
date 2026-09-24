@@ -20,6 +20,8 @@ android {
         targetSdk = 37
         versionCode = 24
         versionName = "12.0"
+        // Public OAuth audience used by Credential Manager. The Web client secret is never in Android.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"751330270743-p1bs5efjhqtjp03mh555k96g0p9k3v32.apps.googleusercontent.com\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -118,4 +120,8 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.google.auth)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.msal)
 }

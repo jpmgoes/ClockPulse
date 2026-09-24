@@ -138,11 +138,13 @@ class AgendaSourceRouterTest {
         database.oauthAccountsDao().upsert(account("two"))
         insertEvent("google:one:event", "one")
         insertEvent("google:two:event", "two")
+        insertEvent("microsoft:two:event", "two")
         // A damaged row can lose its alarmId even though the alarm still owns the event key.
         database.agendaEventsDao().findByKey("google:two:event")!!.let {
             database.agendaEventsDao().upsert(it.copy(alarmId = 0))
         }
         database.alarmsDao().insert(Alarm(time = 0L, agendaEventKey = "google:orphan:event"))
+        database.alarmsDao().insert(Alarm(time = 0L, agendaEventKey = "microsoft:orphan:event"))
         database.alarmsDao().insert(Alarm(time = 0L, agendaEventKey = null))
         val cancelled = mutableListOf<String>()
         val revoked = mutableListOf<String>()
@@ -151,7 +153,7 @@ class AgendaSourceRouterTest {
             cancelAlarm = { alarm ->
                 val key = requireNotNull(alarm.agendaEventKey)
                 // A scheduled alarm must still have its event when cancellation happens.
-                assertEquals(2, database.openHelper.writableDatabase.query(
+                assertEquals(3, database.openHelper.writableDatabase.query(
                     "SELECT COUNT(*) FROM agenda_events WHERE connectionId IS NOT NULL"
                 ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) })
                 cancelled += key
@@ -159,7 +161,10 @@ class AgendaSourceRouterTest {
             revokeAccount = { revoked += it.id }
         )
 
-        assertEquals(setOf("google:one:event", "google:two:event", "google:orphan:event"), cancelled.toSet())
+        assertEquals(
+            setOf("google:one:event", "google:two:event", "microsoft:two:event", "google:orphan:event", "microsoft:orphan:event"),
+            cancelled.toSet()
+        )
         assertEquals(setOf("one", "two"), revoked.toSet())
         assertTrue(database.agendaEventsDao().getAll().isEmpty())
         assertEquals(listOf(null), database.alarmsDao().getAll().map { it.agendaEventKey })
@@ -174,6 +179,7 @@ class AgendaSourceRouterTest {
         sources.select(AgendaSource.LOCAL)
         insertEvent("local:calendar:event", null)
         insertEvent("google:one:event", "one")
+        insertEvent("microsoft:one:event", "one")
         database.alarmsDao().insert(Alarm(time = 0L, agendaEventKey = "local:orphan:event"))
         database.alarmsDao().insert(Alarm(time = 0L, agendaEventKey = null))
         val cancelled = mutableListOf<String>()
@@ -181,8 +187,8 @@ class AgendaSourceRouterTest {
         sources.disconnectLocal(cancelAlarm = { cancelled += requireNotNull(it.agendaEventKey) })
 
         assertEquals(setOf("local:calendar:event", "local:orphan:event"), cancelled.toSet())
-        assertEquals(listOf("google:one:event"), database.agendaEventsDao().getAll().map { it.eventKey })
-        assertEquals(setOf("google:one:event", null), database.alarmsDao().getAll().map { it.agendaEventKey }.toSet())
+        assertEquals(setOf("google:one:event", "microsoft:one:event"), database.agendaEventsDao().getAll().map { it.eventKey }.toSet())
+        assertEquals(setOf("google:one:event", "microsoft:one:event", null), database.alarmsDao().getAll().map { it.agendaEventKey }.toSet())
         assertNull(sources.current())
     }
 

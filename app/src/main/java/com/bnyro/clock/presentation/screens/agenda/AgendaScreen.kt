@@ -47,6 +47,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+enum class OAuthProvider { GOOGLE, MICROSOFT }
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
@@ -59,9 +61,6 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
         hasPermission = it
         if (it) agendaModel.sync(true)
     }
-    val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        agendaModel.onAccountChosen(it.data.takeIf { _ -> it.resultCode == Activity.RESULT_OK })
-    }
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         agendaModel.onConsentResult(it.data.takeIf { _ -> it.resultCode == Activity.RESULT_OK })
     }
@@ -70,7 +69,6 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
             if (!agendaModel.isCurrentLaunch(launch)) return@collect
             try {
                 when (launch) {
-                    is AgendaAuthorizationLaunch.ChooseAccount -> chooserLauncher.launch(launch.intent)
                     is AgendaAuthorizationLaunch.Consent -> consentLauncher.launch(IntentSenderRequest.Builder(launch.intent).build())
                 }
             } catch (_: Exception) { agendaModel.authorizationLaunchFailed() }
@@ -116,9 +114,25 @@ fun AgendaScreen(onClickSettings: () -> Unit, agendaModel: AgendaModel) {
             onSelect = { source -> agendaModel.selectSource(source) {
                 if (source == AgendaSource.LOCAL && !hasPermission) permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
             } },
+            onChooseOAuth = { provider ->
+                agendaModel.selectSource(AgendaSource.OAUTH) {
+                    when (provider) {
+                        OAuthProvider.GOOGLE -> (context as? Activity)?.let { activity -> agendaModel.addAccount(activity) }
+                        OAuthProvider.MICROSOFT -> (context as? Activity)?.let { activity ->
+                            agendaModel.addMicrosoftAccount(activity)
+                        }
+                    }
+                }
+            },
             onGrantPermission = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
-            onAddAccount = { agendaModel.addAccount() },
-            onReconnect = { agendaModel.addAccount(it) },
+            onAddGoogleAccount = { (context as? Activity)?.let { activity -> agendaModel.addAccount(activity) } },
+            onAddMicrosoftAccount = { (context as? Activity)?.let { activity -> agendaModel.addMicrosoftAccount(activity) } },
+            onReconnect = { account ->
+                (context as? Activity)?.let { activity ->
+                    if (account.provider == "MICROSOFT_GRAPH") agendaModel.addMicrosoftAccount(activity, account)
+                    else agendaModel.addAccount(activity, account)
+                }
+            },
             onRemove = agendaModel::disconnectOAuth,
             onDisconnectAll = agendaModel::disconnectAllOAuth,
             onDisconnectLocal = { agendaModel.disconnectLocal {
@@ -142,8 +156,10 @@ fun AgendaSourceContent(
     errorMessage: Int?,
     failedAccountIds: Set<String> = emptySet(),
     onSelect: (AgendaSource) -> Unit,
+    onChooseOAuth: (OAuthProvider) -> Unit,
     onGrantPermission: () -> Unit,
-    onAddAccount: () -> Unit,
+    onAddGoogleAccount: () -> Unit,
+    onAddMicrosoftAccount: () -> Unit,
     onReconnect: (OAuthAccount) -> Unit,
     onRemove: (OAuthAccount) -> Unit,
     onDisconnectAll: () -> Unit,
@@ -155,6 +171,7 @@ fun AgendaSourceContent(
     var disconnectAll by remember { mutableStateOf(false) }
     var disconnectLocal by remember { mutableStateOf(false) }
     var removeAccount by remember { mutableStateOf<OAuthAccount?>(null) }
+    var chooseOAuthProvider by remember { mutableStateOf(false) }
     if (!state.loaded) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
@@ -171,7 +188,7 @@ fun AgendaSourceContent(
                     SourceCard(R.string.agenda_local_source, R.string.agenda_local_description, "choose-local", busy) { onSelect(AgendaSource.LOCAL) }
                 }
                 item {
-                    SourceCard(R.string.agenda_oauth_source, R.string.agenda_oauth_description, "choose-oauth", busy) { onSelect(AgendaSource.OAUTH) }
+                    SourceCard(R.string.agenda_oauth_source, R.string.agenda_oauth_description, "choose-oauth", busy) { chooseOAuthProvider = true }
                 }
             }
             AgendaSource.LOCAL -> {
@@ -191,9 +208,18 @@ fun AgendaSourceContent(
             AgendaSource.OAUTH -> {
                 item { Text(stringResource(R.string.agenda_oauth_source), style = MaterialTheme.typography.titleLarge) }
                 item {
-                    Button(onClick = { showAccounts = true }, enabled = !busy, modifier = Modifier.testTag("manage-google-accounts")) {
-                        Text(stringResource(R.string.agenda_manage_google_accounts, state.accounts.size))
+                    Button(onClick = { showAccounts = true }, enabled = !busy, modifier = Modifier.testTag("manage-oauth-accounts")) {
+                        Text(stringResource(R.string.agenda_manage_oauth_accounts, state.accounts.size))
                     }
+                }
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            if (state.accounts.isEmpty()) onDisconnectAll() else disconnectAll = true
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.testTag("choose-agenda-source")
+                    ) { Text(stringResource(R.string.agenda_change_source)) }
                 }
             }
         }
@@ -210,8 +236,8 @@ fun AgendaSourceContent(
                     stringResource(R.string.agenda_event_provider_local)
                 } else {
                     state.accounts.find { it.id == event.connectionId }?.let { account ->
-                        stringResource(R.string.agenda_event_provider_google, account.displayName, account.email)
-                    } ?: stringResource(R.string.agenda_event_provider_google_unknown)
+                        stringResource(R.string.agenda_event_provider, account.providerDisplayName, account.displayName, account.email)
+                    } ?: stringResource(R.string.agenda_event_provider_oauth_unknown)
                 }
                 AgendaEventItem(event, providerAndAccount, onEnabledChanged, !busy)
             }
@@ -223,23 +249,47 @@ fun AgendaSourceContent(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(stringResource(R.string.agenda_google_accounts_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.agenda_google_accounts_description), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.agenda_oauth_accounts_title), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.agenda_oauth_accounts_description), style = MaterialTheme.typography.bodyMedium)
                 state.accounts.forEach { account ->
                     OAuthAccountCard(account, account.id in failedAccountIds, busy, onReconnect, { removeAccount = account })
                 }
-                Button(onClick = onAddAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) {
+                Button(onClick = onAddGoogleAccount, enabled = !busy, modifier = Modifier.testTag("add-google-account")) {
                     Text(stringResource(R.string.agenda_add_google_account))
+                }
+                OutlinedButton(onClick = onAddMicrosoftAccount, enabled = !busy, modifier = Modifier.testTag("add-microsoft-account")) {
+                    Text(stringResource(R.string.agenda_add_microsoft_account))
                 }
                 OutlinedButton(
                     onClick = { disconnectAll = true },
-                    enabled = !busy && state.accounts.isNotEmpty(),
+                    enabled = !busy,
                     modifier = Modifier.testTag("disconnect-all")
                 ) { Text(stringResource(R.string.agenda_disconnect_all)) }
                 Text(stringResource(R.string.agenda_oauth_source_lock), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+    if (chooseOAuthProvider) {
+        AlertDialog(
+            onDismissRequest = { chooseOAuthProvider = false },
+            title = { Text(stringResource(R.string.agenda_choose_oauth_provider)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.agenda_choose_oauth_provider_description))
+                    Button(
+                        onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
+                        modifier = Modifier.fillMaxWidth().testTag("choose-google-oauth")
+                    ) { Text(stringResource(R.string.agenda_google_provider)) }
+                    OutlinedButton(
+                        onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
+                        modifier = Modifier.fillMaxWidth().testTag("choose-microsoft-oauth")
+                    ) { Text(stringResource(R.string.agenda_microsoft_provider)) }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { chooseOAuthProvider = false }) { Text(stringResource(R.string.cancel)) } }
+        )
     }
     if (disconnectAll) DisconnectDialog(R.string.agenda_disconnect_all, R.string.agenda_disconnect_all_description,
         onDismiss = { disconnectAll = false }, onConfirm = { disconnectAll = false; showAccounts = false; onDisconnectAll() })
@@ -264,7 +314,7 @@ private fun OAuthAccountCard(
 ) {
     Card(Modifier.fillMaxWidth().testTag("oauth-account")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Google Calendar", style = MaterialTheme.typography.labelLarge)
+            Text(account.providerDisplayName, style = MaterialTheme.typography.labelLarge)
             Text(account.displayName, style = MaterialTheme.typography.titleMedium)
             Text(account.email, style = MaterialTheme.typography.bodyMedium)
             if (account.state == "RECONNECT_REQUIRED") Text(stringResource(R.string.agenda_reconnect_required), color = MaterialTheme.colorScheme.error)

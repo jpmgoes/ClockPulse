@@ -14,6 +14,7 @@ import com.bnyro.clock.domain.model.AgendaEvent
 import com.bnyro.clock.domain.model.AgendaSource
 import com.bnyro.clock.domain.model.OAuthAccount
 import com.bnyro.clock.util.google.AuthorizedGoogleCalendar
+import com.bnyro.clock.util.microsoft.AuthorizedMicrosoftCalendar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
@@ -39,9 +40,18 @@ class AgendaSyncer(
         val calendar = AuthorizedGoogleCalendar(app.googleCalendarAuthorizer, app.googleCalendarApi) {
             container.oauthAccountsRepository.updateState(it, "RECONNECT_REQUIRED")
         }
+        val microsoft = AuthorizedMicrosoftCalendar(app.microsoftCalendarAuthorizer, app.microsoftGraphApi) {
+            container.oauthAccountsRepository.updateState(it, "RECONNECT_REQUIRED")
+        }
         val result = OAuthAgendaSync(
             container.oauthAccountsRepository, container.agendaRepository, container.alarmRepository,
-            fetchEvents = calendar::events,
+            fetchEvents = { account, start, end ->
+                when (account.provider) {
+                    "GOOGLE_CALENDAR" -> calendar.events(account, start, end)
+                    "MICROSOFT_GRAPH" -> microsoft.events(account, start, end)
+                    else -> throw java.io.IOException("Unsupported calendar provider")
+                }
+            },
             cancelAlarm = { AlarmHelper.cancel(appContext, it) },
             enqueueAlarm = { AlarmHelper.enqueue(appContext, it) },
             untitledEvent = appContext.getString(com.bnyro.clock.R.string.untitled_event)
@@ -50,7 +60,7 @@ class AgendaSyncer(
         result.addedEventsByAccount.forEach { (accountId, eventCount) ->
             val account = accountsById[accountId] ?: return@forEach
             AgendaSyncNotificationPublisher(appContext).publish(
-                provider = "Google Calendar",
+                provider = account.providerDisplayName,
                 account = "${account.displayName} (${account.email})",
                 eventCount = eventCount
             )

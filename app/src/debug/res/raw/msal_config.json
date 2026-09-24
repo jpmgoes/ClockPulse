@@ -1,0 +1,15 @@
+{
+  "client_id": "9c21c978-0b4f-4eb6-b1d2-09df80d1f8da",
+  "authorization_user_agent": "DEFAULT",
+  "redirect_uri": "msauth://app.clock.pulse.debug/IoXFO8wW%2BJ92lmpdd42uQgL7JzE%3D",
+  "account_mode": "MULTIPLE",
+  "authorities": [
+    {
+      "type": "AAD",
+      "audience": {
+        "type": "AzureADandPersonalMicrosoftAccount",
+        "tenant_id": "common"
+      }
+    }
+  ]
+}

@@ -146,11 +146,15 @@
         <item quantity="other">%d Minutos</item>
     </plurals>
     <string name="agenda_choose_source">Escolha a fonte da agenda</string>
-    <string name="agenda_choose_description">Use as agendas sincronizadas neste aparelho ou conecte contas Google diretamente. Apenas uma fonte fica ativa por vez.</string>
+    <string name="agenda_choose_description">Use as agendas sincronizadas neste aparelho ou conecte contas Google e Microsoft diretamente. Apenas uma fonte fica ativa por vez.</string>
     <string name="agenda_local_source">Agenda local</string>
     <string name="agenda_local_description">Ler as agendas Google sincronizadas com o Android neste aparelho.</string>
-    <string name="agenda_oauth_source">Google Calendar via OAuth</string>
-    <string name="agenda_oauth_description">Conecte uma ou mais contas Google diretamente, sem depender da sincronização de agenda do Android.</string>
+    <string name="agenda_oauth_source">Agendas via OAuth</string>
+    <string name="agenda_choose_oauth_provider">Escolha o provedor de agenda</string>
+    <string name="agenda_choose_oauth_provider_description">Escolha qual conta deseja conectar primeiro. Você poderá adicionar outras contas Google e Microsoft depois.</string>
+    <string name="agenda_google_provider">Google Calendar</string>
+    <string name="agenda_microsoft_provider">Microsoft Outlook</string>
+    <string name="agenda_oauth_description">Conecte contas Google e Microsoft diretamente, sem depender da sincronização de agenda do Android.</string>
     <string name="agenda_local_permission">Permita o acesso à agenda para mostrar os eventos deste aparelho.</string>
     <string name="agenda_disconnect_local">Desconectar agenda local</string>
     <string name="agenda_manage_google_accounts">Contas Google (%1$d)</string>
@@ -162,10 +166,11 @@
     <string name="agenda_reconnect_required">Reconecte esta conta para atualizar os eventos.</string>
     <string name="agenda_account_sync_failed">Não foi possível atualizar esta conta. Os eventos salvos estão sendo mostrados.</string>
     <string name="agenda_disconnect_all">Desconectar todas as contas</string>
-    <string name="agenda_disconnect_all_description">Revogar o acesso de todas as contas Google e apagar todos os eventos sincronizados e alarmes dessas contas? Depois, você poderá escolher outra fonte.</string>
-    <string name="agenda_oauth_source_lock">Para usar a agenda local, desconecte todas as contas Google primeiro.</string>
+    <string name="agenda_change_source">Escolher agenda local ou OAuth</string>
+    <string name="agenda_disconnect_all_description">Revogar o acesso de todas as contas conectadas e apagar todos os eventos sincronizados e alarmes dessas contas? Depois, você poderá escolher outra fonte.</string>
+    <string name="agenda_oauth_source_lock">Para usar a agenda local, desconecte todas as contas conectadas primeiro.</string>
     <string name="agenda_remove_description">Desconectar %1$s e apagar todos os eventos e alarmes desta conta? As outras contas serão mantidas.</string>
-    <string name="agenda_authorization_failed">Não foi possível conectar o Google Calendar. Tente novamente e permita o acesso à agenda. Enquanto o app estiver em teste, use uma conta de teste autorizada.</string>
+    <string name="agenda_authorization_failed">Não foi possível conectar a conta de agenda. Tente novamente e permita o acesso à agenda.</string>
     <string name="agenda_action_failed">Não foi possível concluir esta ação. Tente novamente.</string>
     <string name="agenda_sync_failed">Não foi possível atualizar a agenda. Verifique sua conexão e tente novamente.</string>
     <string name="agenda_partial_sync">Algumas contas não puderam ser atualizadas. Confira os cartões das contas abaixo.</string>
@@ -173,6 +178,12 @@
     <string name="agenda_event_provider_local">Agenda local · Este dispositivo</string>
     <string name="agenda_event_provider_google">Google Calendar · %1$s (%2$s)</string>
     <string name="agenda_event_provider_google_unknown">Google Calendar</string>
+    <string name="agenda_manage_oauth_accounts">Gerenciar contas (%1$d)</string>
+    <string name="agenda_oauth_accounts_title">Contas de agenda</string>
+    <string name="agenda_oauth_accounts_description">Conecte e gerencie contas do Google Calendar e Microsoft Outlook.</string>
+    <string name="agenda_add_microsoft_account">Adicionar conta Microsoft</string>
+    <string name="agenda_event_provider">%1$s · %2$s (%3$s)</string>
+    <string name="agenda_event_provider_oauth_unknown">Agenda conectada</string>
     <string name="agenda_sync_notifications">Sincronização da agenda</string>
     <string name="agenda_events_added_from">%1$s · %2$s</string>
     <plurals name="agenda_events_added_notification_title">

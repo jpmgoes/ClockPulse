@@ -1,10 +1,15 @@
 package com.bnyro.clock.util.google
 
 import android.accounts.Account
-import android.accounts.AccountManager
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.bnyro.clock.BuildConfig
 import com.bnyro.clock.domain.model.OAuthAccount
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
@@ -12,11 +17,12 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.RevokeAccessRequest
-import com.google.android.gms.common.AccountPicker
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
@@ -39,31 +45,47 @@ interface GoogleTokenProvider {
     suspend fun revoke(account: OAuthAccount)
 }
 
-/** Direct on-device authorization; no Web client, server auth code, secret or refresh token. */
+/**
+ * Uses Credential Manager for the current Google sign-in UI, then Play services' AuthorizationClient
+ * for the Calendar access token. No client secret or refresh token is embedded or persisted.
+ */
 class GoogleCalendarAuthorizer(
     context: Context,
-    private val client: AuthorizationClient = Identity.getAuthorizationClient(context.applicationContext)
+    private val client: AuthorizationClient = Identity.getAuthorizationClient(context.applicationContext),
+    private val credentialManager: CredentialManager = CredentialManager.create(context.applicationContext)
 ) : GoogleTokenProvider {
     private val tokens = ConcurrentHashMap<String, String>()
 
-    /** Launch for every Add account action, including when only one device account exists. */
-    fun accountChooserIntent(): Intent = AccountPicker.newChooseAccountIntent(
-        AccountPicker.AccountChooserOptions.Builder()
-            .setAllowableAccountsTypes(listOf("com.google"))
-            .setAlwaysShowAccountPicker(true)
-            .build()
-    )
-
-    fun selectedEmail(data: Intent?): String? = data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
-        ?.takeIf { it.isNotBlank() }
-
-    suspend fun authorize(email: String): GoogleAuthorization {
+    suspend fun authorize(activity: Activity, rememberedEmail: String? = null): GoogleAuthorization {
+        val email = rememberedEmail ?: selectAccount(activity)
         require(email.isNotBlank())
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(scopes)
             .setAccount(Account(email, "com.google"))
             .build()
         return client.authorize(request).awaitResult().asAuthorization()
+    }
+
+    /** The Credential Manager bottom sheet replaces the legacy Android AccountPicker. */
+    private suspend fun selectAccount(activity: Activity): String = try {
+        val option = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            .build()
+        val credential = credentialManager.getCredential(
+            context = activity,
+            request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+        ).credential
+        val googleCredential = credential as? CustomCredential
+            ?: throw GoogleReconnectRequiredException()
+        if (googleCredential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+            throw GoogleReconnectRequiredException()
+        }
+        GoogleIdTokenCredential.createFrom(googleCredential.data).id
+            .takeIf { it.isNotBlank() }
+            ?: throw GoogleReconnectRequiredException()
+    } catch (_: GetCredentialException) {
+        throw GoogleReconnectRequiredException()
     }
 
     fun finishAuthorization(data: Intent): GoogleAuthorization = try {
@@ -73,9 +95,17 @@ class GoogleCalendarAuthorizer(
     }
 
     /** Always ask Play services for a current token; the app retains only the last token to invalidate. */
-    override suspend fun accessToken(account: OAuthAccount): String = when (val result = authorize(account.email)) {
+    override suspend fun accessToken(account: OAuthAccount): String = when (val result = authorizeForAccount(account.email)) {
         is GoogleAuthorization.Authorized -> result.accessToken.also { tokens[account.id] = it }
         is GoogleAuthorization.ConsentRequired -> throw GoogleReconnectRequiredException()
+    }
+
+    private suspend fun authorizeForAccount(email: String): GoogleAuthorization {
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(scopes)
+            .setAccount(Account(email, "com.google"))
+            .build()
+        return client.authorize(request).awaitResult().asAuthorization()
     }
 
     fun rememberToken(account: OAuthAccount, authorization: GoogleAuthorization.Authorized) {

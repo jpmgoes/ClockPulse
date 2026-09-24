@@ -1,6 +1,7 @@
 package com.bnyro.clock.presentation.screens.agenda.model
 
 import android.app.Application
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.compose.runtime.getValue
@@ -16,6 +17,8 @@ import com.bnyro.clock.domain.model.OAuthAccount
 import com.bnyro.clock.util.AgendaSyncer
 import com.bnyro.clock.util.AlarmHelper
 import com.bnyro.clock.util.google.GoogleAuthorization
+import com.bnyro.clock.util.microsoft.MicrosoftAuthorization
+import com.bnyro.clock.util.microsoft.MicrosoftAuthorizationCancelledException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,7 +36,6 @@ data class AgendaUiState(
 
 sealed interface AgendaAuthorizationLaunch {
     val epoch: Long
-    data class ChooseAccount(override val epoch: Long, val intent: Intent) : AgendaAuthorizationLaunch
     data class Consent(override val epoch: Long, val intent: PendingIntent) : AgendaAuthorizationLaunch
 }
 
@@ -93,7 +95,6 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = null
                 hasCompletedInitialSync = false
                 onSelected()
-                if (source == AgendaSource.OAUTH) addAccount()
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (_: Exception) { errorMessage = R.string.agenda_action_failed
             } finally { isChangingSource = false }
@@ -128,7 +129,7 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addAccount(account: OAuthAccount? = null) {
+    fun addAccount(activity: Activity, account: OAuthAccount? = null) {
         if (isConnecting) return
         isConnecting = true
         errorMessage = null
@@ -141,22 +142,34 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 connection = pending
-                if (account == null) launches.send(AgendaAuthorizationLaunch.ChooseAccount(pending.epoch, authorizer.accountChooserIntent()))
-                else handleAuthorization(pending, authorizer.authorize(account.email))
+                handleAuthorization(pending, authorizer.authorize(activity, account?.email))
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (_: Exception) { if (attempt == authorizationAttempt) failAuthorization() }
         }
     }
 
-    fun onAccountChosen(data: Intent?) {
-        val pending = connection ?: return
+    fun addMicrosoftAccount(activity: Activity, account: OAuthAccount? = null) {
+        if (isConnecting) return
+        isConnecting = true
+        errorMessage = null
+        val attempt = ++authorizationAttempt
         viewModelScope.launch {
             try {
-                val email = authorizer.selectedEmail(data)
-                if (email == null) finishConnection(pending)
-                else handleAuthorization(pending, authorizer.authorize(email))
+                val pending = Connection(sourceRepository.beginOAuthConnection(), account?.id)
+                if (attempt != authorizationAttempt) {
+                    sourceRepository.cancelOAuthConnection(pending.epoch)
+                    return@launch
+                }
+                connection = pending
+                handleMicrosoftAuthorization(
+                    pending,
+                    app.microsoftCalendarAuthorizer.authorize(activity, account)
+                )
+            } catch (_: MicrosoftAuthorizationCancelledException) {
+                // Closing the Microsoft account picker is a no-op, but must release the loading state.
+                connection?.let { finishConnection(it) }
             } catch (cancelled: CancellationException) { throw cancelled
-            } catch (_: Exception) { failAuthorization(pending) }
+            } catch (_: Exception) { if (attempt == authorizationAttempt) failAuthorization() }
         }
     }
 
@@ -192,6 +205,18 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private suspend fun handleMicrosoftAuthorization(pending: Connection, authorization: MicrosoftAuthorization) {
+        if (connection != pending) return
+        val homeAccountId = authorization.account.id.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("Microsoft account has no identifier")
+        val profile = app.microsoftGraphApi.profile(authorization.accessToken, homeAccountId)
+        if (connection != pending) return
+        check(pending.expectedId == null || pending.expectedId == profile.id)
+        val accepted = sourceRepository.connectOAuth(pending.epoch, profile)
+        finishConnection(pending)
+        if (accepted) sync()
+    }
+
     private suspend fun finishConnection(pending: Connection) {
         sourceRepository.cancelOAuthConnection(pending.epoch)
         if (connection == pending) {
@@ -220,12 +245,19 @@ class AgendaModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disconnectAllOAuth() = disconnect {
-        syncer.disconnectAllOAuth(authorizer::revoke)
+        syncer.disconnectAllOAuth(::revokeAccount)
     }
 
     fun disconnectOAuth(account: OAuthAccount) = disconnect {
         sourceRepository.disconnectOAuth(account.id,
-            cancelAlarm = { AlarmHelper.cancel(app, it) }, revokeAccount = authorizer::revoke)
+            cancelAlarm = { AlarmHelper.cancel(app, it) }, revokeAccount = ::revokeAccount)
+    }
+
+    private suspend fun revokeAccount(account: OAuthAccount) {
+        when (account.provider) {
+            "MICROSOFT_GRAPH" -> app.microsoftCalendarAuthorizer.revoke(account)
+            else -> authorizer.revoke(account)
+        }
     }
 
     private fun disconnect(action: suspend () -> Unit) {

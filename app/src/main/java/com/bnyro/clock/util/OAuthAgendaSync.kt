@@ -40,10 +40,12 @@ class OAuthAgendaSync(
         val end = start.plusDays(7)
         val profiles = accounts.getAccounts()
         val connectedIds = profiles.mapTo(mutableSetOf()) { it.id }
-        val prefixes = connectedIds.map(::accountEventPrefix)
+        val prefixes = profiles.filter { it.id in connectedIds }.map(::accountEventPrefix)
         removeEvents(
             events.getEvents().filter { it.connectionId != null && it.connectionId !in connectedIds },
-            ownsAlarm = { key -> key.startsWith("google:") && prefixes.none(key::startsWith) }
+            ownsAlarm = { key ->
+                (key.startsWith("google:") || key.startsWith("microsoft:")) && prefixes.none(key::startsWith)
+            }
         )
         val failed = mutableSetOf<String>()
         val addedEventsByAccount = mutableMapOf<String, Int>()
@@ -55,7 +57,7 @@ class OAuthAgendaSync(
                 failed += account.id
                 continue
             }
-            require(snapshot.all { it.connectionId == account.id && it.eventKey.startsWith(accountEventPrefix(account.id)) })
+            require(snapshot.all { it.connectionId == account.id && it.eventKey.startsWith(accountEventPrefix(account)) })
             val addedEvents = updateAccount(account.id, snapshot, zoneId)
             if (addedEvents > 0) addedEventsByAccount[account.id] = addedEvents
             accounts.updateLastSyncedAt(account.id, now)
@@ -100,7 +102,8 @@ class OAuthAgendaSync(
             enqueueAlarm(alarm.copy(id = id))
         }
         val currentKeys = snapshot.mapTo(mutableSetOf()) { it.eventKey }
-        val prefix = accountEventPrefix(accountId)
+        val account = accounts.findById(accountId) ?: return addedEvents
+        val prefix = accountEventPrefix(account)
         removeEvents(existing.values.filter { it.eventKey !in currentKeys }) { key ->
             key.startsWith(prefix) && key !in currentKeys
         }
@@ -118,5 +121,5 @@ class OAuthAgendaSync(
     }
 }
 
-internal fun accountEventPrefix(accountId: String): String =
-    "google:${URLEncoder.encode(accountId, "UTF-8").replace("+", "%20")}:"
+internal fun accountEventPrefix(account: OAuthAccount): String =
+    "${if (account.provider == "MICROSOFT_GRAPH") "microsoft" else "google"}:${URLEncoder.encode(account.id, "UTF-8").replace("+", "%20")}:"

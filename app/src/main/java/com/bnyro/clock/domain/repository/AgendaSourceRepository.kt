@@ -64,11 +64,15 @@ class AgendaSourceRepository(
         // Older versions may have mirrored local events without a source-selection row.
         if (source == AgendaSource.OAUTH) removeEvents(
             belongsToSource = { it.connectionId == null },
-            belongsToAlarmSource = { it.agendaEventKey?.startsWith("google:") == false },
+            belongsToAlarmSource = {
+                it.agendaEventKey?.startsWith("google:") == false && it.agendaEventKey?.startsWith("microsoft:") == false
+            },
             cancelAlarm = cancelAlarm
         ) else removeEvents(
             belongsToSource = { it.connectionId != null },
-            belongsToAlarmSource = { it.agendaEventKey?.startsWith("google:") == true },
+            belongsToAlarmSource = {
+                it.agendaEventKey?.startsWith("google:") == true || it.agendaEventKey?.startsWith("microsoft:") == true
+            },
             cancelAlarm = cancelAlarm
         )
         sourceDao.select(source)
@@ -105,7 +109,10 @@ class AgendaSourceRepository(
         ++connectionEpoch
         removeEvents(
             belongsToSource = { it.connectionId == null },
-            belongsToAlarmSource = { it.agendaEventKey?.startsWith("google:") == false },
+            belongsToAlarmSource = {
+                it.agendaEventKey?.startsWith("google:") == false &&
+                    it.agendaEventKey?.startsWith("microsoft:") == false
+            },
             cancelAlarm = cancelAlarm
         )
         sourceDao.clear()
@@ -120,7 +127,10 @@ class AgendaSourceRepository(
         accounts.getAccounts().forEach { revokeAccount(it) }
         removeEvents(
             belongsToSource = { it.connectionId != null },
-            belongsToAlarmSource = { it.agendaEventKey?.startsWith("google:") == true },
+            belongsToAlarmSource = {
+                it.agendaEventKey?.startsWith("google:") == true ||
+                    it.agendaEventKey?.startsWith("microsoft:") == true
+            },
             cancelAlarm = cancelAlarm
         )
         accounts.deleteAll()
@@ -136,10 +146,11 @@ class AgendaSourceRepository(
         check(current() != AgendaSource.LOCAL) { "Local is the selected agenda source" }
         ++connectionEpoch
         accounts.findById(accountId)?.let { revokeAccount(it) }
-        val prefix = accountEventPrefix(accountId)
+        val account = accounts.findById(accountId)
+        val prefix = account?.let(::accountEventPrefix)
         removeEvents(
             belongsToSource = { it.connectionId == accountId },
-            belongsToAlarmSource = { it.agendaEventKey?.startsWith(prefix) == true },
+            belongsToAlarmSource = { prefix != null && it.agendaEventKey?.startsWith(prefix) == true },
             cancelAlarm = cancelAlarm
         )
         accounts.delete(accountId)
