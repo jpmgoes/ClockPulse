@@ -176,6 +176,8 @@ fun AgendaSourceContent(
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
+    val showSourceSelector = state.source == null ||
+        state.source == AgendaSource.OAUTH && state.accounts.isEmpty()
     errorMessage?.let { message ->
         AlertDialog(
             onDismissRequest = onDismissError,
@@ -190,8 +192,8 @@ fun AgendaSourceContent(
         )
     }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        when (state.source) {
-            null -> {
+        when {
+            showSourceSelector -> {
                 item { Text(stringResource(R.string.agenda_choose_source), style = MaterialTheme.typography.headlineSmall) }
                 item { Text(stringResource(R.string.agenda_choose_description)) }
                 item {
@@ -201,7 +203,7 @@ fun AgendaSourceContent(
                     SourceCard(R.string.agenda_oauth_source, R.string.agenda_oauth_description, "choose-oauth", busy) { chooseOAuthProvider = true }
                 }
             }
-            AgendaSource.LOCAL -> {
+            state.source == AgendaSource.LOCAL -> {
                 item { Text(stringResource(R.string.agenda_local_source), style = MaterialTheme.typography.titleLarge) }
                 if (!hasPermission) item {
                     Text(stringResource(R.string.agenda_local_permission))
@@ -215,7 +217,7 @@ fun AgendaSourceContent(
                     }
                 }
             }
-            AgendaSource.OAUTH -> {
+            state.source == AgendaSource.OAUTH -> {
                 item { Text(stringResource(R.string.agenda_oauth_source), style = MaterialTheme.typography.titleLarge) }
                 item {
                     Button(onClick = { showAccounts = true }, enabled = !busy, modifier = Modifier.testTag("manage-oauth-accounts")) {
@@ -233,7 +235,7 @@ fun AgendaSourceContent(
                 }
             }
         }
-        if (state.source != null) {
+        if (!showSourceSelector) {
             item { Text(stringResource(R.string.agenda_window), style = MaterialTheme.typography.bodyMedium) }
             // Defend at the rendering boundary as well as in the repository/model.
             val visible = state.events.filter { event ->
