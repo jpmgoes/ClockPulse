@@ -41,6 +41,7 @@ class AgendaSourceFlowTest {
         compose.onNodeWithTag("choose-oauth").performClick()
         compose.onNodeWithTag("oauth-provider-sheet").assertIsDisplayed()
         compose.onNodeWithTag("oauth-account").assertDoesNotExist()
+        compose.onNodeWithTag("oauth-provider-actions").assertIsDisplayed()
         compose.onNodeWithTag("choose-google-oauth").assertIsDisplayed()
         compose.onNodeWithTag("choose-microsoft-oauth").assertIsDisplayed()
     }

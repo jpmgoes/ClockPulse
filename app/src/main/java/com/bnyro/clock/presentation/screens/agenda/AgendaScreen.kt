@@ -26,8 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -291,14 +293,38 @@ fun AgendaSourceContent(
             ) {
                 Text(stringResource(R.string.agenda_choose_oauth_provider), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.agenda_choose_oauth_provider_description), style = MaterialTheme.typography.bodyMedium)
-                Button(
-                    onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
-                    modifier = Modifier.fillMaxWidth().testTag("choose-google-oauth")
-                ) { Text(stringResource(R.string.agenda_google_provider)) }
-                OutlinedButton(
-                    onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
-                    modifier = Modifier.fillMaxWidth().testTag("choose-microsoft-oauth")
-                ) { Text(stringResource(R.string.agenda_microsoft_provider)) }
+                Surface(
+                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("oauth-provider-actions"),
+                    shape = RoundedCornerShape(32.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shadowElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
+                            modifier = Modifier.testTag("choose-google-oauth")
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_google),
+                                contentDescription = stringResource(R.string.agenda_google_provider)
+                            )
+                        }
+                        IconButton(
+                            onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
+                            modifier = Modifier.testTag("choose-microsoft-oauth")
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_microsoft),
+                                contentDescription = stringResource(R.string.agenda_microsoft_provider)
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }
