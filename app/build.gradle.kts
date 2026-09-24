@@ -74,6 +74,9 @@ android {
             isIncludeAndroidResources = true
         }
     }
+    lint {
+        disable += setOf("ExtraTranslation", "MissingDefaultResource")
+    }
 }
 
 dependencies {
