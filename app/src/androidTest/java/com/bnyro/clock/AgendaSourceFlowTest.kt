@@ -35,6 +35,16 @@ class AgendaSourceFlowTest {
         compose.onNodeWithTag("manage-oauth-accounts").assertDoesNotExist()
     }
 
+    @Test fun oauthProviderChoiceUsesAnAccountStyleModalWithoutAccounts() {
+        render(mutableStateOf(AgendaUiState(loaded = true)))
+
+        compose.onNodeWithTag("choose-oauth").performClick()
+        compose.onNodeWithTag("oauth-provider-sheet").assertIsDisplayed()
+        compose.onNodeWithTag("oauth-account").assertDoesNotExist()
+        compose.onNodeWithTag("choose-google-oauth").assertIsDisplayed()
+        compose.onNodeWithTag("choose-microsoft-oauth").assertIsDisplayed()
+    }
+
     @Test fun localNeverRendersOAuthAccountsOrEvents() {
         render(mutableStateOf(AgendaUiState(true, AgendaSource.LOCAL, listOf(account), mixedEvents())))
         compose.onNodeWithTag("disconnect-local").assertIsDisplayed()

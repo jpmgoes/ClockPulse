@@ -283,25 +283,25 @@ fun AgendaSourceContent(
         }
     }
     if (chooseOAuthProvider) {
-        AlertDialog(
-            onDismissRequest = { chooseOAuthProvider = false },
-            title = { Text(stringResource(R.string.agenda_choose_oauth_provider)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.agenda_choose_oauth_provider_description))
-                    Button(
-                        onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
-                        modifier = Modifier.fillMaxWidth().testTag("choose-google-oauth")
-                    ) { Text(stringResource(R.string.agenda_google_provider)) }
-                    OutlinedButton(
-                        onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
-                        modifier = Modifier.fillMaxWidth().testTag("choose-microsoft-oauth")
-                    ) { Text(stringResource(R.string.agenda_microsoft_provider)) }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { chooseOAuthProvider = false }) { Text(stringResource(R.string.cancel)) } }
-        )
+        ModalBottomSheet(onDismissRequest = { chooseOAuthProvider = false }) {
+            Column(
+                Modifier.fillMaxWidth().testTag("oauth-provider-sheet")
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(stringResource(R.string.agenda_choose_oauth_provider), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.agenda_choose_oauth_provider_description), style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.GOOGLE) },
+                    modifier = Modifier.fillMaxWidth().testTag("choose-google-oauth")
+                ) { Text(stringResource(R.string.agenda_google_provider)) }
+                OutlinedButton(
+                    onClick = { chooseOAuthProvider = false; onChooseOAuth(OAuthProvider.MICROSOFT) },
+                    modifier = Modifier.fillMaxWidth().testTag("choose-microsoft-oauth")
+                ) { Text(stringResource(R.string.agenda_microsoft_provider)) }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
     }
     if (disconnectAll) DisconnectDialog(R.string.agenda_disconnect_all, R.string.agenda_disconnect_all_description,
         onDismiss = { disconnectAll = false }, onConfirm = { disconnectAll = false; showAccounts = false; onDisconnectAll() })
